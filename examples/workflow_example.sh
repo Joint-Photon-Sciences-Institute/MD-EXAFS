@@ -24,9 +24,13 @@ echo "Step 2: Running FEFF calculations locally..."
 num_inputs=$(find feff_calculations -name "feff.inp" | wc -l)
 echo "Found $num_inputs FEFF input files to process"
 
-# Run locally with Python script
-echo "Running parallel FEFF calculations..."
-python run_feff_local.py --base-dir feff_calculations
+# Count working directories
+num_working_dirs=$(ls -d feff_calculations/working_* 2>/dev/null | wc -l)
+echo "Found $num_working_dirs working directories"
+
+# Run locally with the CLI tool
+echo "Running parallel FEFF calculations with $num_working_dirs workers..."
+md-exafs-feff-local --base-dir feff_calculations --workers $num_working_dirs
 
 if [ $? -eq 0 ]; then
     echo "✓ FEFF calculations complete"

@@ -95,10 +95,14 @@ This generates FEFF input files organized in directories optimized for parallel 
 Run FEFF calculations locally with parallel processing:
 
 ```bash
-python examples/run_feff_local.py --base-dir feff_calculations
+# First check how many working directories were created
+ls feff_calculations/
+
+# Run with workers matching the number of working directories
+md-exafs-feff-local --base-dir feff_calculations --workers 4
 ```
 
-The script automatically uses all available CPU cores. Adjust with `--workers N`.
+**Note:** The `--workers` parameter is required and should match the number of working directories for optimal performance.
 
 #### Option B: HPC Execution (for production)
 
@@ -173,14 +177,13 @@ The package is designed for HPC environments:
 
 See the `examples/` directory for:
 
+- `README.md` - Instructions for running the examples
 - `uo2_single_frame.xyz` - Single-frame UO₂ trajectory for testing
 - `uo2_config.toml` - UO₂ system configuration (configured for test data)
-- `fe_oxide_config.toml` - Fe₂O₃ system example
+- `averaging_config.toml` - Configuration for chi(k) averaging
 - `workflow_example.sh` - Complete workflow demonstration with local execution
 - `python_example.py` - Python API usage
-- `run_feff_local.py` - Local parallel FEFF execution script
 - `run_slurm.sh` - HPC batch script
-- `averaging_config.toml` - Example averaging configuration
 
 ## Requirements
 

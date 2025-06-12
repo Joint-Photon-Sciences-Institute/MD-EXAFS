@@ -80,13 +80,15 @@ md-exafs-average --input-dir DIR --start FRAME --end FRAME --output FILE
 For testing or small datasets, you can run FEFF calculations locally:
 
 ```bash
-python examples/run_feff_local.py --base-dir feff_calculations --workers 4
+md-exafs-feff-local --base-dir feff_calculations --workers 4
 ```
 
 Options:
 - `--base-dir`: Directory containing FEFF inputs (default: feff_calculations)
-- `--workers`: Number of parallel processes (default: all CPU cores)
+- `--workers`: Number of parallel processes (REQUIRED - should match number of working directories)
 - `--feff-path`: Path to FEFF executable (default: auto-detect bundled version)
+
+The tool will inform you of the optimal number of workers based on your directory structure.
 
 #### HPC Execution
 
