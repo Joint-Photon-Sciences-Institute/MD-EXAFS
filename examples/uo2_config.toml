@@ -20,9 +20,9 @@ U = 1
 O = 2
 
 [processing]
-start_frame = 90000
+start_frame = 99000
 end_frame = 100000
-frame_step = 10  # Process every 10th frame
+frame_step = 5  # Process every 10th frame
 atoms_per_frame = 10  # Number of central atoms to process per frame
 cutoff_radius = 10.0  # Neighbor search radius in Angstroms
 cores_per_node = 112  # For directory distribution in parallel processing
