@@ -66,7 +66,7 @@ md-exafs-average --input-dir DIR --start FRAME --end FRAME --output FILE
 
 ## Workflow Example
 
-1. **Prepare your trajectory file** in XYZ format
+1. **Prepare your trajectory file** - The package supports any format compatible with OVITO (tested with CP2K XYZ files)
 2. **Create configuration** based on your system
 3. **Process trajectory** to generate FEFF inputs
 4. **Run FEFF calculations** locally or on HPC

@@ -6,6 +6,8 @@ A Python package for calculating Extended X-ray Absorption Fine Structure (EXAFS
 
 MD-EXAFS processes MD simulation trajectories to generate FEFF input files and compute averaged EXAFS χ(k) spectra. The package is designed for high-performance computing environments and supports parallel processing of large trajectory datasets.
 
+The package has been tested with CP2K trajectory files but should work with any trajectory format compatible with OVITO (XYZ, LAMMPS, VASP, etc.).
+
 ## Features
 
 - **Flexible Configuration**: TOML-based configuration for all parameters
