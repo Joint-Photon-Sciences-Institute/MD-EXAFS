@@ -100,3 +100,7 @@ YOUR-GUIDELINES.md
 
 # Test outputs
 test_bad_config.toml
+
+# Claude files
+CLAUDE.md
+.claude/
