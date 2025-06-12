@@ -97,6 +97,7 @@ temp/
 # Task tracking
 CURRENT-TASK.md
 YOUR-GUIDELINES.md
+CLAUDE.md
 
 # Test outputs
 test_bad_config.toml
