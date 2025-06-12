@@ -47,9 +47,13 @@ pip install -e .
 
 ## Quick Start
 
+### Testing with Example Data
+
+The package includes a single-frame UO₂ trajectory (`examples/uo2_single_frame.xyz`) for quick testing without needing large trajectory files. The example configuration is pre-configured for this test data.
+
 ### 1. Prepare Configuration
 
-Create a TOML configuration file for your system (see `examples/uo2_config.toml`):
+Create a TOML configuration file for your system (see `examples/uo2_config.toml` for the test example):
 
 ```toml
 [system]
@@ -85,6 +89,18 @@ md-exafs-process config.toml
 This generates FEFF input files organized in directories optimized for parallel processing.
 
 ### 3. Run FEFF Calculations
+
+#### Option A: Local Execution (for testing/small datasets)
+
+Run FEFF calculations locally with parallel processing:
+
+```bash
+python examples/run_feff_local.py --base-dir feff_calculations
+```
+
+The script automatically uses all available CPU cores. Adjust with `--workers N`.
+
+#### Option B: HPC Execution (for production)
 
 Submit the SLURM script to your HPC queue:
 
@@ -157,11 +173,14 @@ The package is designed for HPC environments:
 
 See the `examples/` directory for:
 
-- `uo2_config.toml` - UO₂ system configuration
+- `uo2_single_frame.xyz` - Single-frame UO₂ trajectory for testing
+- `uo2_config.toml` - UO₂ system configuration (configured for test data)
 - `fe_oxide_config.toml` - Fe₂O₃ system example
-- `workflow_example.sh` - Complete workflow demonstration
+- `workflow_example.sh` - Complete workflow demonstration with local execution
 - `python_example.py` - Python API usage
+- `run_feff_local.py` - Local parallel FEFF execution script
 - `run_slurm.sh` - HPC batch script
+- `averaging_config.toml` - Example averaging configuration
 
 ## Requirements
 

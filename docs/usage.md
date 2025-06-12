@@ -70,8 +70,31 @@ md-exafs-average --input-dir DIR --start FRAME --end FRAME --output FILE
 1. **Prepare your trajectory file** in XYZ format
 2. **Create configuration** based on your system
 3. **Process trajectory** to generate FEFF inputs
-4. **Run FEFF calculations** on HPC
+4. **Run FEFF calculations** locally or on HPC
 5. **Average results** to get final χ(k) spectrum
+
+### Running FEFF Calculations
+
+#### Local Execution
+
+For testing or small datasets, you can run FEFF calculations locally:
+
+```bash
+python examples/run_feff_local.py --base-dir feff_calculations --workers 4
+```
+
+Options:
+- `--base-dir`: Directory containing FEFF inputs (default: feff_calculations)
+- `--workers`: Number of parallel processes (default: all CPU cores)
+- `--feff-path`: Path to FEFF executable (default: auto-detect bundled version)
+
+#### HPC Execution
+
+For large production runs, submit to your HPC queue:
+
+```bash
+sbatch examples/run_slurm.sh
+```
 
 ## Tips
 

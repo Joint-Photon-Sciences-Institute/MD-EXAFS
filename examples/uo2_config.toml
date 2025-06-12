@@ -2,7 +2,7 @@
 
 [system]
 name = "UO2"
-trajectory_file = "examples/UO2-pos-1.xyz"
+trajectory_file = "examples/uo2_single_frame.xyz"  # Single frame example
 output_directory = "feff_calculations"
 
 [lattice]
@@ -20,12 +20,12 @@ U = 1
 O = 2
 
 [processing]
-start_frame = 99000
-end_frame = 100000
-frame_step = 5  # Process every 10th frame
+start_frame = 0      # Single frame example
+end_frame = 1        # Only one frame available
+frame_step = 1       # Process the single frame
 atoms_per_frame = 10  # Number of central atoms to process per frame
 cutoff_radius = 10.0  # Neighbor search radius in Angstroms
-cores_per_node = 112  # For directory distribution in parallel processing
+cores_per_node = 4    # For local parallel processing (adjust to your CPU cores)
 
 [feff]
 # Optional: Path to FEFF executable (defaults to bundled version)

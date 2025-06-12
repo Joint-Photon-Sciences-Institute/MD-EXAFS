@@ -5,6 +5,8 @@ reference_code_base/
 *.xyz
 *.lammpstrj
 *.dump
+# Keep the single frame example
+!examples/uo2_single_frame.xyz
 
 # Python
 __pycache__/
