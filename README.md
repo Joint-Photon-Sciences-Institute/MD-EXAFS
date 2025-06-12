@@ -198,19 +198,6 @@ See the `examples/` directory for:
 
 MIT License - see LICENSE file for details.
 
-## Citation
-
-If you use MD-EXAFS in your research, please cite:
-
-```bibtex
-@software{md_exafs,
-  title = {MD-EXAFS: EXAFS spectra from MD trajectories},
-  author = {Your Name},
-  year = {2024},
-  url = {https://github.com/yourusername/md-exafs}
-}
-```
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
