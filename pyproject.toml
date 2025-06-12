@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "md_exafs"
+version = "0.1.0"
+description = "A Python package for calculating EXAFS spectra from MD trajectories"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy>=1.20.0",
+    "ovito>=3.0.0",
+    "tqdm>=4.60.0",
+    "tomli>=2.0.0;python_version<'3.11'",
+]
+
+[project.scripts]
+md-exafs-process = "md_exafs.trajectory_processor:main"
+md-exafs-average = "md_exafs.chi_averager:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+md_exafs = ["feff8_lite/*"]

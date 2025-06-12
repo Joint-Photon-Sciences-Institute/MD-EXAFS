@@ -1,0 +1,100 @@
+# Reference code base (original implementation)
+reference_code_base/
+
+# Large trajectory files
+*.xyz
+*.lammpstrj
+*.dump
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# Testing
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Documentation builds
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# FEFF calculation outputs
+feff_calculations/
+feff_*/
+chi_*.dat
+*.out
+
+# Slurm outputs
+job_*.out
+job_*.err
+slurm-*.out
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+tmp/
+temp/
+
+# Archives
+*.tar.gz
+*.zip
+
+# Task tracking
+CURRENT-TASK.md
+YOUR-GUIDELINES.md
+
+# Test outputs
+test_bad_config.toml

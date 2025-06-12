@@ -1,0 +1,11 @@
+# MD-EXAFS Chi Averaging Configuration
+
+[averaging]
+# Directory containing FEFF calculation results
+input_directory = "feff_calculations"
+
+# Frame range to average
+frame_range = [90000, 100000]
+
+# Output file for averaged chi data
+output_file = "chi_avg_100k.dat"

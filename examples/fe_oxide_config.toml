@@ -1,0 +1,52 @@
+# Example MD-EXAFS Configuration for Iron Oxide System
+
+[system]
+name = "Fe2O3"
+trajectory_file = "path/to/fe2o3_trajectory.xyz"
+output_directory = "feff_fe2o3"
+
+[lattice]
+# Example lattice vectors for Fe2O3 (adjust to your system)
+a = [5.035, 0.0, 0.0]
+b = [0.0, 5.035, 0.0]
+c = [0.0, 0.0, 13.747]
+pbc = [true, true, true]
+
+[atoms]
+# Element to type ID mapping from your trajectory
+Fe = 1
+O = 2
+
+[processing]
+start_frame = 0
+end_frame = 1000
+frame_step = 10
+atoms_per_frame = 5  # Process 5 Fe atoms per frame
+cutoff_radius = 8.0  # Smaller cutoff for Fe
+cores_per_node = 64  # Adjust to your HPC system
+
+[feff]
+# Optional: Custom FEFF executable path
+# feff_executable = "/path/to/custom/feff85L"
+
+# FEFF header for Fe K-edge
+header = """TITLE   Fe2O3 EXAFS Calculation
+  
+EDGE      K
+S02       0.9
+
+*         pot    xsph  fms   paths genfmt ff2chi
+*CONTROL   0      0     0     0     1      1
+*PRINT     1      0     0     0     0      2
+  
+*         r_scf   [ l_scf  n_scf  ca ]
+SCF       4.0     0      30     0.1     1
+
+*         ixc  [ Vr  Vi ]
+EXCHANGE  0      0   0
+
+EXAFS     20.0
+RPATH     5.0
+NLEGS     4
+CRITERIA  0.0  2.0
+"""

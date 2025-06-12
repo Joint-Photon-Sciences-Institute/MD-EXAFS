@@ -1,0 +1,56 @@
+# MD-EXAFS Configuration for UO2 System
+
+[system]
+name = "UO2"
+trajectory_file = "examples/UO2-pos-1.xyz"
+output_directory = "feff_calculations"
+
+[lattice]
+# Lattice vectors in Angstroms
+a = [21.87537964, 0.32813069, 0.00000000]
+b = [0.32813069, 21.87537964, 0.00000000]
+c = [0.00000000, 0.00000000, 21.88030271]
+# Periodic boundary conditions [x, y, z]
+pbc = [true, true, true]
+
+[atoms]
+# Element symbol to type ID mapping
+# These IDs must match those in your trajectory file
+U = 1
+O = 2
+
+[processing]
+start_frame = 90000
+end_frame = 100000
+frame_step = 10  # Process every 10th frame
+atoms_per_frame = 10  # Number of central atoms to process per frame
+cutoff_radius = 10.0  # Neighbor search radius in Angstroms
+cores_per_node = 112  # For directory distribution in parallel processing
+
+[feff]
+# Optional: Path to FEFF executable (defaults to bundled version)
+# feff_executable = "/path/to/custom/feff85L.exe"
+
+# FEFF input file header template
+# This will be used as-is in the generated FEFF input files
+header = """TITLE   EvAX_FEFF_inp
+  
+EDGE      L3 
+S02       1.000000000000
+
+*         pot    xsph  fms   paths genfmt ff2chi
+*CONTROL   0      0     0     0     1      1
+*PRINT     1      0     0     0     0      2
+  
+*         r_scf   [ l_scf  n_scf  ca ]
+SCF       4.000000000000   0      30     0.100000000000     1
+
+*         ixc  [ Vr  Vi ]
+EXCHANGE  0      0   0
+
+EXAFS 20.0
+RPATH    6.500000000000
+NLEGS    8
+CRITERIA  0.0  1.500000000000 
+CFAVERAGE 1 1 6.5"""
+
