@@ -25,7 +25,6 @@ end_frame = 1        # Only one frame available
 frame_step = 1       # Process the single frame
 atoms_per_frame = 10  # Number of central atoms to process per frame
 cutoff_radius = 10.0  # Neighbor search radius in Angstroms
-cores_per_node = 1    # Only 1 needed for single frame (frames are distributed, not atoms)
 
 [feff]
 # Optional: Path to FEFF executable (defaults to bundled version)

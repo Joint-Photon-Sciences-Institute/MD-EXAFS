@@ -35,7 +35,6 @@ def process_trajectory(config: Dict[str, Any]) -> None:
         processing["frame_step"]
     )
     num_atoms = processing["atoms_per_frame"]
-    cores_per_node = processing["cores_per_node"]
     
     print(f"Current working directory: {os.getcwd()}")
     print(f"Will save files in: {base_dir.absolute()}")
@@ -61,12 +60,6 @@ def process_trajectory(config: Dict[str, Any]) -> None:
     print(f"Trajectory contains {num_frames} frames")
     print(f"Processing {len(frame_list)} frames from {min_frame} to {max_frame}")
     
-    # Calculate frame distribution
-    frames_per_dir, num_dirs = _setup_directories(len(frame_list), cores_per_node)
-    
-    # Create frame distribution dictionary
-    frame_distribution = _distribute_frames(frame_list, cores_per_node, frames_per_dir)
-    
     # Get central atom type from config
     central_atom_type = _get_central_atom_type(config)
     
@@ -75,81 +68,35 @@ def process_trajectory(config: Dict[str, Any]) -> None:
     
     # Process frames
     with tqdm(total=total_iterations, desc="Processing FEFF inputs") as pbar:
-        for working_dir_num, frames in frame_distribution.items():
-            working_dir = f"working_{working_dir_num}"
+        for frame in frame_list:
+            data = pipeline.compute(frame)
             
-            for frame in frames:
-                data = pipeline.compute(frame)
+            # Process central atoms
+            central_indices = _get_central_atom_indices(
+                data, central_atom_type, num_atoms, config
+            )
+            
+            for atom_idx, central_index in enumerate(central_indices):
+                dir_path = _create_directory_structure(
+                    base_dir, frame, atom_idx
+                )
+                feff_path = dir_path / "feff.inp"
                 
-                # Process central atoms
-                central_indices = _get_central_atom_indices(
-                    data, central_atom_type, num_atoms, config
+                # Generate FEFF input
+                feff_content = _generate_single_feff_input(
+                    data, central_index, config
                 )
                 
-                for atom_idx, central_index in enumerate(central_indices):
-                    dir_path = _create_directory_structure(
-                        base_dir, working_dir, frame, atom_idx
-                    )
-                    feff_path = dir_path / "feff.inp"
-                    
-                    # Generate FEFF input
-                    feff_content = _generate_single_feff_input(
-                        data, central_index, config
-                    )
-                    
-                    with open(feff_path, 'w') as f:
-                        f.write(feff_content)
-                    
-                    total_files += 1
-                    pbar.update(1)
+                with open(feff_path, 'w') as f:
+                    f.write(feff_content)
+                
+                total_files += 1
+                pbar.update(1)
     
     print(f"\nFinished! Created {total_files} FEFF input files in {base_dir}")
     print(f"Total frames processed: {len(frame_list)}")
     print(f"FEFF inputs per frame: {num_atoms}")
-    print(f"Total directories used: {num_dirs}")
 
-
-def _setup_directories(num_frames: int, cores_per_node: int) -> Tuple[int, int]:
-    """Calculate directory distribution for parallel processing."""
-    if num_frames <= cores_per_node:
-        frames_per_dir = 1
-        num_dirs = num_frames
-    else:
-        frames_per_dir = num_frames // cores_per_node
-        num_dirs = cores_per_node
-    
-    print(f"Creating {num_dirs} working directories")
-    print(f"Base frames per directory: {frames_per_dir}")
-    
-    remaining_frames = num_frames % cores_per_node
-    if remaining_frames > 0:
-        print(f"{remaining_frames} directories will process one additional frame")
-    
-    return frames_per_dir, num_dirs
-
-
-def _distribute_frames(
-    frame_list: List[int], 
-    cores_per_node: int, 
-    frames_per_dir: int
-) -> Dict[int, List[int]]:
-    """Distribute frames across working directories."""
-    frame_distribution = {}
-    frames_processed = 0
-    remaining_frames = len(frame_list) % cores_per_node
-    
-    for dir_num in range(min(cores_per_node, len(frame_list))):
-        start_idx = frames_processed
-        # Add one extra frame to directories until remaining_frames are used
-        if dir_num < remaining_frames:
-            end_idx = start_idx + frames_per_dir + 1
-        else:
-            end_idx = start_idx + frames_per_dir
-            
-        frame_distribution[dir_num] = frame_list[start_idx:end_idx]
-        frames_processed = end_idx
-    
-    return frame_distribution
 
 
 def _get_central_atom_type(config: Dict[str, Any]) -> int:
@@ -187,12 +134,11 @@ def _get_central_atom_indices(
 
 def _create_directory_structure(
     base_dir: Path, 
-    working_dir: str, 
     frame: int, 
     atom_idx: int
 ) -> Path:
     """Create nested directory structure for FEFF input."""
-    dir_path = base_dir / working_dir / f"frame_{frame}" / f"atom_{atom_idx}"
+    dir_path = base_dir / f"frame_{frame}" / f"atom_{atom_idx}"
     dir_path.mkdir(parents=True, exist_ok=True)
     return dir_path
 

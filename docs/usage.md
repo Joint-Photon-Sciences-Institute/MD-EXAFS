@@ -26,7 +26,6 @@ end_frame = integer          # Last frame (exclusive)
 frame_step = integer         # Process every Nth frame
 atoms_per_frame = integer    # Central atoms per frame
 cutoff_radius = float        # Neighbor search radius (Angstroms)
-cores_per_node = integer     # For parallel distribution
 
 [feff]
 feff_executable = "path"     # Optional: custom FEFF path
@@ -98,12 +97,20 @@ For large production runs, submit to your HPC queue:
 sbatch examples/run_slurm.sh
 ```
 
+### Parallelization Strategy
+
+Both local and HPC execution use the same parallelization approach:
+
+1. **All FEFF calculations are independent** - Each atom in each frame can be processed in parallel
+2. **Dynamic work queue** - Workers take the next available calculation when ready
+3. **No frame boundaries** - A worker might process atoms from different frames
+4. **Optimal efficiency** - No worker sits idle if there's work available
+
+The directory structure (`frame_X/atom_Y/`) is purely for organization, not for work distribution.
+
 ## Tips
 
 - Start with a small frame range for testing
 - Verify atom type mappings match your trajectory
 - Check that lattice vectors are correct for your system
 - Use appropriate cutoff radius for your element
-- Adjust `cores_per_node` to match your HPC system
-- Note: `cores_per_node` distributes frames across directories, not atoms
-- With many frames, each core processes its assigned frames sequentially

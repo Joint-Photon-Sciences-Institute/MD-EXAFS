@@ -110,7 +110,7 @@ def _validate_processing_config(config: Dict[str, Any]) -> None:
     processing = config["processing"]
     required_processing_fields = [
         "start_frame", "end_frame", "frame_step", 
-        "atoms_per_frame", "cutoff_radius", "cores_per_node"
+        "atoms_per_frame", "cutoff_radius"
     ]
     for field in required_processing_fields:
         if field not in processing:
@@ -128,9 +128,6 @@ def _validate_processing_config(config: Dict[str, Any]) -> None:
     
     if processing["cutoff_radius"] <= 0:
         raise ConfigError("cutoff_radius must be positive")
-    
-    if processing["cores_per_node"] <= 0:
-        raise ConfigError("cores_per_node must be positive")
     
     # Validate FEFF section
     feff = config["feff"]

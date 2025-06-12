@@ -29,9 +29,9 @@ We provide a single-frame UO₂ trajectory for quick testing of the complete wor
    
    This will create a `feff_calculations` directory with 10 FEFF input files (10 uranium atoms from 1 frame).
    
-   Since we have only 1 frame and `cores_per_node = 1`, all calculations will be in:
+   The structure will be:
    ```
-   feff_calculations/working_0/frame_0/atom_0/ through atom_9/
+   feff_calculations/frame_0/atom_0/ through atom_9/
    ```
 
 3. **Run FEFF calculations locally:**
@@ -80,7 +80,6 @@ To use MD-EXAFS with your own data:
 
 - The example uses only 1 frame for quick testing. Real calculations typically use thousands of frames.
 - Local execution is suitable for testing and small datasets. For production runs with many frames, use HPC.
-- The `cores_per_node` parameter distributes **frames** across working directories, not atoms.
-- With multiple frames, set `cores_per_node` to match your CPU cores for optimal frame-level parallelization.
-- Each atom calculation within a frame runs independently, so `--workers` can parallelize these.
+- Each FEFF calculation (one per atom) runs independently and can be parallelized.
+- Both local and HPC execution use the same dynamic work queue approach for optimal efficiency.
 - FEFF calculations can take several minutes even for this small example.

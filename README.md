@@ -77,7 +77,6 @@ end_frame = 100000
 frame_step = 10
 atoms_per_frame = 10
 cutoff_radius = 10.0
-cores_per_node = 112
 ```
 
 ### 2. Process Trajectory
@@ -168,10 +167,10 @@ average_chi_files(
 
 The package is designed for HPC environments:
 
-1. **Directory Distribution**: Automatically distributes work across available cores
-2. **SLURM Integration**: Example script provided (modify for your HPC system)
-3. **Parallel FEFF**: Each core processes independent FEFF calculations
-4. **Configurable Resources**: Adjust `cores_per_node` in configuration
+1. **SLURM Integration**: Example script provided (modify for your HPC system)
+2. **Parallel FEFF**: Each FEFF calculation runs independently
+3. **Dynamic Load Balancing**: Workers process calculations from a shared queue
+4. **Scalable**: Works efficiently from small local runs to large HPC jobs
 
 ## Examples
 
