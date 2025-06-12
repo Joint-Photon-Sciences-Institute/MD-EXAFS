@@ -95,14 +95,14 @@ This generates FEFF input files organized in directories optimized for parallel 
 Run FEFF calculations locally with parallel processing:
 
 ```bash
-# First check how many working directories were created
-ls feff_calculations/
+# Check how many FEFF calculations need to be run
+find feff_calculations -name "feff.inp" | wc -l
 
-# Run with workers matching the number of working directories
-md-exafs-feff-local --base-dir feff_calculations --workers 4
+# Run with appropriate number of workers
+md-exafs-feff-local --base-dir feff_calculations --workers 10
 ```
 
-**Note:** The `--workers` parameter is required and should match the number of working directories for optimal performance.
+**Note:** The `--workers` parameter is required. Each FEFF calculation (one per atom) runs independently, so you can use multiple workers up to the number of calculations.
 
 #### Option B: HPC Execution (for production)
 

@@ -28,22 +28,20 @@ We provide a single-frame UO₂ trajectory for quick testing of the complete wor
    ```
    
    This will create a `feff_calculations` directory with 10 FEFF input files (10 uranium atoms from 1 frame).
+   
+   Since we have only 1 frame and `cores_per_node = 1`, all calculations will be in:
+   ```
+   feff_calculations/working_0/frame_0/atom_0/ through atom_9/
+   ```
 
-3. **Check the number of working directories created:**
+3. **Run FEFF calculations locally:**
    ```bash
-   ls feff_calculations/
+   md-exafs-feff-local --base-dir feff_calculations --workers 10
    ```
    
-   For this example with 10 atoms and 4 cores configured, you should see 4 working directories (working_0 through working_3).
+   Since each atom calculation is independent, you can use multiple workers (up to 10 in this example) to run them in parallel.
 
-4. **Run FEFF calculations locally:**
-   ```bash
-   md-exafs-feff-local --base-dir feff_calculations --workers 4
-   ```
-   
-   **Important:** Set `--workers` equal to the number of working directories for optimal performance.
-
-5. **Average the chi(k) results:**
+4. **Average the chi(k) results:**
    ```bash
    md-exafs-average --config averaging_config.toml
    ```
@@ -82,5 +80,7 @@ To use MD-EXAFS with your own data:
 
 - The example uses only 1 frame for quick testing. Real calculations typically use thousands of frames.
 - Local execution is suitable for testing and small datasets. For production runs with many frames, use HPC.
-- The number of workers should match the number of working directories for optimal load balancing.
+- The `cores_per_node` parameter distributes **frames** across working directories, not atoms.
+- With multiple frames, set `cores_per_node` to match your CPU cores for optimal frame-level parallelization.
+- Each atom calculation within a frame runs independently, so `--workers` can parallelize these.
 - FEFF calculations can take several minutes even for this small example.

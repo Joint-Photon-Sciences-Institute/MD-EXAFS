@@ -138,29 +138,19 @@ def main():
         print(f"No feff.inp files found in {base_path}")
         sys.exit(1)
     
-    print(f"Found {len(feff_dirs)} directories to process")
-    
-    # Count working directories
-    working_dirs = set()
-    for feff_dir in feff_dirs:
-        # Extract working_X from path
-        parts = Path(feff_dir).parts
-        for part in parts:
-            if part.startswith("working_"):
-                working_dirs.add(part)
-                break
-    
-    num_working_dirs = len(working_dirs)
-    print(f"Found {num_working_dirs} working directories")
+    print(f"Found {len(feff_dirs)} FEFF calculations to process")
     
     # Determine number of workers
     if args.workers is None:
         cpu_count = multiprocessing.cpu_count()
         print(f"\nError: --workers must be specified")
         print(f"Your system has {cpu_count} CPU cores")
-        print(f"The feff_calculations directory has {num_working_dirs} working directories")
-        print(f"For optimal performance, set --workers equal to the number of working directories")
-        print(f"Example: python run_feff_local.py --workers {num_working_dirs}")
+        print(f"You have {len(feff_dirs)} FEFF calculations to run")
+        print(f"")
+        print(f"Each FEFF calculation runs independently, so you can use")
+        print(f"multiple workers to speed up the process.")
+        print(f"")
+        print(f"Example: md-exafs-feff-local --workers {min(cpu_count, len(feff_dirs))}")
         sys.exit(1)
     else:
         workers = args.workers

@@ -85,10 +85,10 @@ md-exafs-feff-local --base-dir feff_calculations --workers 4
 
 Options:
 - `--base-dir`: Directory containing FEFF inputs (default: feff_calculations)
-- `--workers`: Number of parallel processes (REQUIRED - should match number of working directories)
+- `--workers`: Number of parallel processes (REQUIRED)
 - `--feff-path`: Path to FEFF executable (default: auto-detect bundled version)
 
-The tool will inform you of the optimal number of workers based on your directory structure.
+**Important:** Each FEFF calculation (one per atom) runs independently. You can use multiple workers to parallelize these calculations, up to the total number of calculations.
 
 #### HPC Execution
 
@@ -105,3 +105,5 @@ sbatch examples/run_slurm.sh
 - Check that lattice vectors are correct for your system
 - Use appropriate cutoff radius for your element
 - Adjust `cores_per_node` to match your HPC system
+- Note: `cores_per_node` distributes frames across directories, not atoms
+- With many frames, each core processes its assigned frames sequentially
