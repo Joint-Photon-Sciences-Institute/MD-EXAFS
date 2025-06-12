@@ -71,6 +71,7 @@ To use MD-EXAFS with your own data:
    - Update `trajectory_file` path
    - Set appropriate lattice vectors
    - Map your atom types
+   - Specify which element is the X-ray absorber in `absorbing_element`
    - Adjust frame range and processing parameters
    - Modify the FEFF header for your element and edge
 

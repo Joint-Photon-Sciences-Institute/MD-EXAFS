@@ -27,6 +27,9 @@ atoms_per_frame = 10  # Number of central atoms to process per frame
 cutoff_radius = 10.0  # Neighbor search radius in Angstroms
 
 [feff]
+# Which element is the X-ray absorber (must be in [atoms] section)
+absorbing_element = "U"
+
 # Optional: Path to FEFF executable (defaults to bundled version)
 # feff_executable = "/path/to/custom/feff85L.exe"
 
@@ -51,5 +54,11 @@ EXAFS 20.0
 RPATH    6.500000000000
 NLEGS    8
 CRITERIA  0.0  1.500000000000 
-CFAVERAGE 1 1 6.5"""
+CFAVERAGE 1 1 6.5
+
+POTENTIALS
+*   ipot   z [ label   l_scmt  l_fms  stoichiometry ]
+    0   92    U     -1      -1       0
+    1   92    U     -1      -1       1
+    2   8     O     -1      -1       2"""
 

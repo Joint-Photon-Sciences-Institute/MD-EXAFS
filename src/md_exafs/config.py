@@ -131,8 +131,15 @@ def _validate_processing_config(config: Dict[str, Any]) -> None:
     
     # Validate FEFF section
     feff = config["feff"]
-    if "header" not in feff:
-        raise ConfigError("Missing required field in [feff]: header")
+    required_feff_fields = ["header", "absorbing_element"]
+    for field in required_feff_fields:
+        if field not in feff:
+            raise ConfigError(f"Missing required field in [feff]: {field}")
+    
+    # Validate absorbing element is in atoms
+    absorbing_element = feff["absorbing_element"]
+    if absorbing_element not in atoms:
+        raise ConfigError(f"Absorbing element '{absorbing_element}' not found in [atoms] section")
 
 
 def _validate_averaging_config(config: Dict[str, Any]) -> None:

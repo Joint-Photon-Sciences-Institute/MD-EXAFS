@@ -28,6 +28,7 @@ atoms_per_frame = integer    # Central atoms per frame
 cutoff_radius = float        # Neighbor search radius (Angstroms)
 
 [feff]
+absorbing_element = "symbol" # Element that absorbs X-rays (required)
 feff_executable = "path"     # Optional: custom FEFF path
 header = """                 # FEFF input header template
 multiline string

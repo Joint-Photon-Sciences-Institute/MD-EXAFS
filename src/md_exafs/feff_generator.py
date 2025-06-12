@@ -22,14 +22,16 @@ def generate_feff_input(
     # Get header from config
     header = config["feff"]["header"]
     
-    # Build potentials section
-    potentials_section = _build_potentials_section(atoms_data, config)
-    
-    # Build atoms section
-    atoms_section = _build_atoms_section(atoms_data)
-    
-    # Combine all sections
-    feff_content = f"{header}\n\n{potentials_section}\n\n{atoms_section}\nEND\n"
+    # Check if POTENTIALS section is already in the header
+    if "POTENTIALS" in header:
+        # Header already contains POTENTIALS section, just add ATOMS section
+        atoms_section = _build_atoms_section(atoms_data)
+        feff_content = f"{header}\n\n{atoms_section}\nEND\n"
+    else:
+        # Build potentials section dynamically
+        potentials_section = _build_potentials_section(atoms_data, config)
+        atoms_section = _build_atoms_section(atoms_data)
+        feff_content = f"{header}\n\n{potentials_section}\n\n{atoms_section}\nEND\n"
     
     return feff_content
 
@@ -80,8 +82,12 @@ def assign_potential_indices(
     """
     Assign potential indices to atoms based on element type.
     
-    Central atom always gets potential 0, other atoms get sequential indices
-    based on unique element types.
+    FEFF Convention:
+    - Potential 0: Always the central (absorbing) atom
+    - Potentials 1, 2, 3, ...: Different atomic species
+    
+    The absorbing element always gets potential 1 when it appears as a neighbor.
+    Other elements are assigned sequential potentials starting from 2.
     
     Args:
         element_symbols: List of element symbols for all atoms
@@ -91,18 +97,29 @@ def assign_potential_indices(
     Returns:
         List of potential indices corresponding to each atom
     """
-    # Central atom is always potential 0
-    potential_indices = [0]  # First atom is central
+    absorbing_element = config["feff"]["absorbing_element"]
     
-    # Map other unique elements to sequential indices
-    element_to_potential = {central_element: 0}
-    next_potential = 1
+    # Build the species mapping
+    # First, get all unique elements except the absorbing element
+    unique_elements = sorted(set(element_symbols) - {absorbing_element})
     
-    for element in element_symbols[1:]:  # Skip central atom
-        if element not in element_to_potential:
-            element_to_potential[element] = next_potential
+    # Create potential mapping
+    # Absorbing element always gets index 1 when it's a neighbor
+    species_to_potential = {absorbing_element: 1}
+    
+    # Assign sequential indices to other elements
+    next_potential = 2
+    for element in unique_elements:
+        if element not in species_to_potential:
+            species_to_potential[element] = next_potential
             next_potential += 1
-        
-        potential_indices.append(element_to_potential[element])
+    
+    # Now assign potential indices
+    potential_indices = []
+    for i, element in enumerate(element_symbols):
+        if i == 0:  # Central atom
+            potential_indices.append(0)
+        else:  # Neighbor atom
+            potential_indices.append(species_to_potential[element])
     
     return potential_indices

@@ -79,6 +79,9 @@ end_frame = 100000
 frame_step = 10
 atoms_per_frame = 10
 cutoff_radius = 10.0
+
+[feff]
+absorbing_element = "U"  # Which element is the X-ray absorber
 ```
 
 ### 2. Process Trajectory

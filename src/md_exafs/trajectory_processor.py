@@ -60,8 +60,9 @@ def process_trajectory(config: Dict[str, Any]) -> None:
     print(f"Trajectory contains {num_frames} frames")
     print(f"Processing {len(frame_list)} frames from {min_frame} to {max_frame}")
     
-    # Get central atom type from config
-    central_atom_type = _get_central_atom_type(config)
+    # Get absorbing element type from config
+    absorbing_element = config["feff"]["absorbing_element"]
+    central_atom_type = config["atoms"][absorbing_element]
     
     total_files = 0
     total_iterations = len(frame_list) * num_atoms
@@ -99,13 +100,6 @@ def process_trajectory(config: Dict[str, Any]) -> None:
 
 
 
-def _get_central_atom_type(config: Dict[str, Any]) -> int:
-    """Determine the central atom type from configuration."""
-    # For now, use the first atom type in the atoms section
-    # In future, this could be made configurable
-    atoms = config["atoms"]
-    # Get the atom with the lowest type ID (typically the central atom)
-    return min(atoms.values())
 
 
 def _get_central_atom_indices(
@@ -115,18 +109,19 @@ def _get_central_atom_indices(
     config: Dict[str, Any]
 ) -> List[int]:
     """Get indices of central atoms to process."""
-    # Find all atoms of the central type
+    # Find all atoms of the absorbing element type
     atom_types = data.particles.particle_types[:]
     central_indices = np.where(atom_types == central_atom_type)[0]
     
+    absorbing_element = config["feff"]["absorbing_element"]
     if len(central_indices) == 0:
-        raise ValueError(f"No atoms of type {central_atom_type} found in trajectory")
+        raise ValueError(f"No atoms of absorbing element '{absorbing_element}' (type {central_atom_type}) found in trajectory")
     
     # Randomly select the requested number of atoms
     if num_atoms > len(central_indices):
         raise ValueError(
-            f"Requested {num_atoms} central atoms but only "
-            f"{len(central_indices)} atoms of type {central_atom_type} found"
+            f"Requested {num_atoms} atoms of absorbing element '{absorbing_element}' but only "
+            f"{len(central_indices)} found in trajectory"
         )
     
     return random.sample(list(central_indices), num_atoms)
