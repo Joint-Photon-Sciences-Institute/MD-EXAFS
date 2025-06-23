@@ -128,6 +128,82 @@ md-exafs-average --config averaging_config.toml
 md-exafs-average --input-dir feff_calculations --start 90000 --end 100000 --output chi_avg.dat
 ```
 
+## Command-Line Tools
+
+MD-EXAFS provides several command-line tools for different stages of the workflow:
+
+### md-exafs-process
+
+Process MD trajectories to generate FEFF input files.
+
+```bash
+md-exafs-process config.toml
+```
+
+This tool reads the trajectory file and creates FEFF input files for each selected atom in each frame, organized into directories for parallel processing.
+
+### md-exafs-feff-local
+
+Run FEFF calculations locally with parallel processing.
+
+```bash
+md-exafs-feff-local --base-dir feff_calculations --workers 10
+```
+
+Options:
+- `--base-dir`: Directory containing FEFF input files (required)
+- `--workers`: Number of parallel workers (required)
+
+### md-exafs-average
+
+Average chi(k) data from completed FEFF calculations.
+
+```bash
+# Using TOML config
+md-exafs-average --config averaging_config.toml
+
+# Using CLI arguments
+md-exafs-average --input-dir feff_calculations --start 90000 --end 100000 --output chi_avg.dat
+```
+
+Options:
+- `--config`: Path to TOML configuration file
+- `--input-dir`: Directory containing FEFF calculations
+- `--start`: Starting frame number
+- `--end`: Ending frame number
+- `--output`: Output file for averaged chi(k) data
+
+### md-exafs-md-input-gen
+
+Generate structure input files for MD simulations from CIF files.
+
+```bash
+md-exafs-md-input-gen --cp2k --input structure.cif --size 3,3,3 --output supercell.xyz
+```
+
+This tool reads CIF (Crystallographic Information File) format structures and generates supercells in formats suitable for MD simulations.
+
+Options:
+- `--cp2k`: Output in CP2K format (no header, element x y z)
+- `--input`: Input CIF file path (required)
+- `--size`: Supercell size as "nx,ny,nz" (e.g., "3,3,3" for 3×3×3) (required)
+- `--output`: Output file path (required)
+
+Example:
+```bash
+# Generate a 3×3×3 supercell of gold in CP2K format
+md-exafs-md-input-gen --cp2k --input Au.cif --size 3,3,3 --output Au_3x3x3.xyz
+
+# Generate a 2×2×2 supercell
+md-exafs-md-input-gen --cp2k --input UO2.cif --size 2,2,2 --output UO2_2x2x2.xyz
+```
+
+The CP2K format output consists of:
+- No header lines
+- One atom per line
+- Format: `Element  X_coordinate  Y_coordinate  Z_coordinate`
+- Coordinates in scientific notation (e.g., 1.2345678901234567E+00)
+
 ## Configuration
 
 ### Processing Configuration
@@ -196,6 +272,7 @@ See the `examples/` directory for:
 - OVITO ≥ 3.0.0
 - tqdm ≥ 4.60.0
 - tomli ≥ 2.0.0 (Python < 3.11)
+- ASE ≥ 3.22.0
 
 ## License
 
