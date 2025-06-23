@@ -39,13 +39,16 @@ pip install -e .
 ### Using pip
 
 ```bash
+# IMPORTANT: First install OVITO via conda (required)
+conda install --strict-channel-priority -c https://conda.ovito.org -c conda-forge ovito=3.12.4
+
 # Clone and install
 git clone https://github.com/yourusername/md-exafs.git
 cd md-exafs
 pip install -e .
 ```
 
-**Note**: Requires Python ≥ 3.8 and the OVITO package for trajectory processing.
+**Note**: Requires Python ≥ 3.8. OVITO must be installed via conda (not pip) for trajectory processing.
 
 ## Quick Start
 

@@ -26,7 +26,8 @@ classifiers = [
 ]
 dependencies = [
     "numpy>=1.20.0",
-    "ovito>=3.0.0",
+    # Note: ovito must be installed via conda, not pip
+    # conda install --strict-channel-priority -c https://conda.ovito.org -c conda-forge ovito=3.12.4
     "tqdm>=4.60.0",
     "tomli>=2.0.0;python_version<'3.11'",
     "ase>=3.22.0",
