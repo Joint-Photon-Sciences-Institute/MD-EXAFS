@@ -149,11 +149,16 @@ def _sum_chi_data(data_list: List[np.ndarray]) -> np.ndarray:
     # Truncate all arrays to the minimum length
     truncated_data = [data[:min_length] for data in data_list]
     
-    # Stack and sum
-    stacked_data = np.stack(truncated_data)
-    summed_data = np.sum(stacked_data, axis=0)
+    # Use the k-grid from the first dataset
+    k_grid = truncated_data[0][:, 0]
     
-    return summed_data
+    # Sum only the chi values (column 1), not the k values
+    chi_sum = np.zeros(min_length)
+    for data in truncated_data:
+        chi_sum += data[:, 1]
+    
+    # Return k-grid with summed chi
+    return np.column_stack((k_grid, chi_sum))
 
 
 def _convert_feffdat_to_chi(feff_file: Path, larch_interp: Any) -> Optional[np.ndarray]:
