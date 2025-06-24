@@ -292,11 +292,32 @@ def _average_feff_paths(
         # Average all partial chi files (average of sums across atoms)
         final_averaged = _average_chi_data(all_partial_chi)
         
-        # Save the final averaged data
-        np.savetxt(output_file, final_averaged, fmt='%.6f',
-                  header="k(A^-1)  chi(k) - Average of path sums across all atoms")
+        # Interpolate to standard k-grid (0 to 20 with step 0.05)
+        from scipy.interpolate import interp1d
+        
+        # Create standard k-grid
+        k_standard = np.arange(0, 20.05, 0.05)
+        
+        # Extract k and chi from averaged data
+        k_orig = final_averaged[:, 0]
+        chi_orig = final_averaged[:, 1]
+        
+        # Create interpolation function
+        f_interp = interp1d(k_orig, chi_orig, kind='cubic', 
+                           bounds_error=False, fill_value='extrapolate')
+        
+        # Interpolate to standard grid
+        chi_interp = f_interp(k_standard)
+        
+        # Create final data array
+        final_data = np.column_stack((k_standard, chi_interp))
+        
+        # Save the final averaged and interpolated data
+        np.savetxt(output_file, final_data, fmt='%.6f',
+                  header="k(A^-1)  chi(k) - Average of path sums across all atoms (interpolated to k=0:20:0.05)")
         print(f"Final averaged data saved to {output_file}")
         print(f"Averaged over {len(all_partial_chi)} atom folders")
+        print(f"Interpolated to standard k-grid: 0 to 20 Å⁻¹ with step 0.05")
         print(f"Note: Each atom's chi_partial_0.dat contains the SUM of paths {paths}")
         print(f"      The final output is the AVERAGE of these sums across atoms")
     else:
