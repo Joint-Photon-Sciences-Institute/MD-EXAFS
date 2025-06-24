@@ -9,6 +9,7 @@ dependencies:
   - numpy>=1.20.0
   - ovito=3.12.4
   - ase>=3.22.0
+  - xraylarch  # Optional: for processing FEFF paths
   - pip
   - pip:
     - tqdm>=4.60.0

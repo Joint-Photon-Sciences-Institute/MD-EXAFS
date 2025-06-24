@@ -42,6 +42,8 @@ multiline string
 input_directory = "path"     # Directory with chi.dat files
 frame_range = [start, end]   # Frames to include in average
 output_file = "path"         # Output file for averaged data
+paths = [1, 2, 3, 4, 5, 6, 7, 8]  # Optional: specific FEFF paths to process
+# Alternative: paths = "[1,8]"    # Range notation as string
 ```
 
 ## Command Line Interface
@@ -63,7 +65,16 @@ md-exafs-average --config averaging_config.toml
 
 # Using command line arguments
 md-exafs-average --input-dir DIR --start FRAME --end FRAME --output FILE
+
+# Process specific FEFF paths
+md-exafs-average --input-dir DIR --start FRAME --end FRAME --paths "[1,8]" --output FILE
 ```
+
+Options:
+- `--paths`: Process specific FEFF paths instead of existing chi.dat files
+  - Format: "[start,end]" for range (e.g., "[1,8]") or "[1,3,5,7]" for specific paths
+  - Requires xraylarch package
+  - Sums paths within each atom, then averages across atoms
 
 ## Workflow Example
 

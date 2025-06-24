@@ -167,6 +167,9 @@ md-exafs-average --config averaging_config.toml
 
 # Using CLI arguments
 md-exafs-average --input-dir feff_calculations --start 90000 --end 100000 --output chi_avg.dat
+
+# Process specific FEFF paths
+md-exafs-average --input-dir feff_calculations --start 90000 --end 100000 --paths "[1,8]" --output chi_partial.dat
 ```
 
 Options:
@@ -175,6 +178,13 @@ Options:
 - `--start`: Starting frame number
 - `--end`: Ending frame number
 - `--output`: Output file for averaged chi(k) data
+- `--paths`: Process specific FEFF paths (e.g., "[1,8]" for paths 1-8, or "[1,3,5,7]" for specific paths)
+
+When using `--paths`:
+- Requires xraylarch package (`conda install -c conda-forge xraylarch`)
+- Converts feffxxxx.dat files to chi(k) data
+- Sums paths within each atom folder (saved as chi_partial_0.dat)
+- Averages the sums across all atoms (saved as output file)
 
 ### md-exafs-md-input-gen
 

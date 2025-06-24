@@ -9,3 +9,9 @@ frame_range = [0, 1]
 
 # Output file for averaged chi data
 output_file = "chi_avg_example.dat"
+
+# Optional: Specify FEFF paths to process
+# If not provided, will use existing chi.dat files
+# Can be a list of specific paths: paths = [1, 3, 5, 7]
+# Or a range format as string: paths = "[1,8]"
+# Example: paths = [1, 2, 3, 4, 5, 6, 7, 8]

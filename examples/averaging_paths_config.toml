@@ -1,0 +1,18 @@
+# MD-EXAFS Chi Averaging Configuration with Path Processing
+
+[averaging]
+# Directory containing FEFF calculation results
+input_directory = "reference_code_base"
+
+# Frame range to average
+frame_range = [180000, 180001]
+
+# Output file for averaged chi data
+output_file = "chi_partial.dat"
+
+# FEFF paths to process and average
+# This will process feff0001.dat through feff0008.dat
+paths = [1, 2, 3, 4, 5, 6, 7, 8]
+
+# Alternative range notation (as string):
+# paths = "[1,8]"
