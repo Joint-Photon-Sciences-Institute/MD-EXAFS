@@ -73,8 +73,8 @@ md-exafs-average --input-dir DIR --start FRAME --end FRAME --paths "[1,8]" --out
 Options:
 - `--paths`: Process specific FEFF paths instead of existing chi.dat files
   - Format: "[start,end]" for range (e.g., "[1,8]") or "[1,3,5,7]" for specific paths
-  - Requires xraylarch package
   - Sums paths within each atom, then averages across atoms
+  - Automatically interpolates output to standard k-grid (0 to 20 Å⁻¹ with step 0.05)
 
 ## Workflow Example
 

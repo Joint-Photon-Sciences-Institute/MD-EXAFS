@@ -31,6 +31,7 @@ dependencies = [
     "tqdm>=4.60.0",
     "tomli>=2.0.0;python_version<'3.11'",
     "ase>=3.22.0",
+    "xraylarch",  # Required for FEFF path processing
 ]
 
 [project.scripts]

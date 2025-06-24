@@ -42,13 +42,16 @@ pip install -e .
 # IMPORTANT: First install OVITO via conda (required)
 conda install --strict-channel-priority -c https://conda.ovito.org -c conda-forge ovito=3.12.4
 
+# Install xraylarch (required for path processing)
+pip install xraylarch
+
 # Clone and install
 git clone https://github.com/yourusername/md-exafs.git
 cd md-exafs
 pip install -e .
 ```
 
-**Note**: Requires Python ≥ 3.8. OVITO must be installed via conda (not pip) for trajectory processing.
+**Note**: Requires Python ≥ 3.8. OVITO must be installed via conda (not pip) for trajectory processing. Xraylarch is required for FEFF path processing features.
 
 ## Quick Start
 
@@ -181,10 +184,10 @@ Options:
 - `--paths`: Process specific FEFF paths (e.g., "[1,8]" for paths 1-8, or "[1,3,5,7]" for specific paths)
 
 When using `--paths`:
-- Requires xraylarch package (`conda install -c conda-forge xraylarch`)
 - Converts feffxxxx.dat files to chi(k) data
 - Sums paths within each atom folder (saved as chi_partial_0.dat)
 - Averages the sums across all atoms (saved as output file)
+- Automatically interpolates output to standard k-grid (0 to 20 Å⁻¹ with step 0.05)
 
 ### md-exafs-md-input-gen
 
@@ -286,6 +289,7 @@ See the `examples/` directory for:
 - tqdm ≥ 4.60.0
 - tomli ≥ 2.0.0 (Python < 3.11)
 - ASE ≥ 3.22.0
+- xraylarch (for FEFF path processing)
 
 ## License
 
