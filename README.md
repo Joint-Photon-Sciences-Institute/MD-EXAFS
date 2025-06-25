@@ -6,17 +6,15 @@ A Python package for calculating Extended X-ray Absorption Fine Structure (EXAFS
 
 MD-EXAFS processes MD simulation trajectories to generate FEFF input files and compute averaged EXAFS χ(k) spectra. The package is designed for high-performance computing environments and supports parallel processing of large trajectory datasets.
 
-The package has been tested with CP2K trajectory files but should work with any trajectory format compatible with OVITO (XYZ, LAMMPS, VASP, etc.).
-
-## Features
+## Key Features
 
 - **Flexible Configuration**: TOML-based configuration for all parameters
-- **Multi-Element Support**: Works with any atomic system (not limited to specific elements)
-- **Parallel Processing**: Optimized for HPC environments with configurable core distribution
-- **PBC Support**: Full periodic boundary condition handling with minimum image convention
-- **Independent Averaging**: Chi averaging can be run separately with different frame ranges
+- **Multi-Element Support**: Works with any atomic system
+- **Parallel Processing**: Optimized for HPC environments
+- **Database Caching**: Pre-compute chi(k) data for 10-100x faster multipath averaging
 - **Multipath Analysis**: Advanced path selection by scattering type and distance
-- **CLI and API**: Both command-line tools and Python API access
+- **PBC Support**: Full periodic boundary condition handling
+- **Multiple Formats**: Compatible with OVITO-supported trajectories (XYZ, LAMMPS, VASP, etc.)
 
 ## Installation
 
@@ -37,14 +35,14 @@ conda activate md-exafs
 pip install -e .
 ```
 
-### Using pip
+### Manual Installation
 
 ```bash
 # IMPORTANT: First install OVITO via conda (required)
 conda install --strict-channel-priority -c https://conda.ovito.org -c conda-forge ovito=3.12.4
 
 # Install xraylarch (required for path processing)
-pip install xraylarch
+conda install -c conda-forge xraylarch
 
 # Clone and install
 git clone https://github.com/yourusername/md-exafs.git
@@ -52,17 +50,13 @@ cd md-exafs
 pip install -e .
 ```
 
-**Note**: Requires Python ≥ 3.8. OVITO must be installed via conda (not pip) for trajectory processing. Xraylarch is required for FEFF path processing features.
+**Requirements**: Python ≥ 3.8, OVITO (conda-only), xraylarch, numpy, tqdm
 
 ## Quick Start
 
-### Testing with Example Data
+### 1. Configure Your System
 
-The package includes a single-frame UO₂ trajectory (`examples/uo2_single_frame.xyz`) for quick testing without needing large trajectory files. The example configuration is pre-configured for this test data.
-
-### 1. Prepare Configuration
-
-Create a TOML configuration file for your system (see `examples/uo2_config.toml` for the test example):
+Create a TOML configuration file (see `examples/uo2_config.toml`):
 
 ```toml
 [system]
@@ -88,185 +82,156 @@ atoms_per_frame = 10
 cutoff_radius = 10.0
 
 [feff]
-absorbing_element = "U"  # Which element is the X-ray absorber
+absorbing_element = "U"
 ```
 
-### 2. Process Trajectory
+### 2. Standard Workflow
+
+```bash
+# Step 1: Process trajectory to generate FEFF inputs
+md-exafs-process config.toml
+
+# Step 2: Run FEFF calculations (choose one)
+# Option A: Local execution
+md-exafs-feff-local --base-dir feff_calculations --workers 10
+
+# Option B: HPC execution
+sbatch examples/run_slurm.sh
+
+# Step 3: Average chi(k) data
+md-exafs-average --config averaging_config.toml
+```
+
+### 3. Database-Optimized Workflow (Recommended for Multipath)
+
+For faster multipath averaging, use the database feature:
+
+```bash
+# Build database once (processes ALL frames/atoms found)
+md-exafs-average --build-database --input-dir feff_calculations --database chi_database.db
+
+# Then use database for fast averaging with different configurations
+md-exafs-average --config multipath_config.toml --use-database --database chi_database.db
+```
+
+The database provides 10-100x speedup for multipath averaging by eliminating redundant calculations.
+
+## Detailed Usage
+
+### Processing MD Trajectories
+
+The `md-exafs-process` command reads your trajectory and generates FEFF input files:
 
 ```bash
 md-exafs-process config.toml
 ```
 
-This generates FEFF input files organized in directories optimized for parallel processing.
+This creates a directory structure optimized for parallel FEFF execution:
+```
+feff_calculations/
+├── working_0/
+│   ├── frame_90000/
+│   │   ├── atom_0/feff.inp
+│   │   ├── atom_1/feff.inp
+│   │   └── ...
+│   └── frame_90010/
+└── working_1/
+```
 
-### 3. Run FEFF Calculations
+### Running FEFF Calculations
 
-#### Option A: Local Execution (for testing/small datasets)
-
-Run FEFF calculations locally with parallel processing:
+#### Local Execution
+For testing or small datasets:
 
 ```bash
-# Check how many FEFF calculations need to be run
-find feff_calculations -name "feff.inp" | wc -l
-
-# Run with appropriate number of workers
 md-exafs-feff-local --base-dir feff_calculations --workers 10
 ```
 
-**Note:** The `--workers` parameter is required. Each FEFF calculation (one per atom) runs independently, so you can use multiple workers up to the number of calculations.
-
-#### Option B: HPC Execution (for production)
-
-Submit the SLURM script to your HPC queue:
+#### HPC Execution
+For production runs, modify the SLURM script for your system:
 
 ```bash
 sbatch examples/run_slurm.sh
 ```
 
-### 4. Average Chi(k) Data
+### Averaging Chi(k) Data
 
-After FEFF calculations complete:
+#### Basic Averaging
+Average all chi.dat files in a frame range:
 
 ```bash
-# Using TOML config
+# Using configuration file
 md-exafs-average --config averaging_config.toml
 
-# Or using CLI arguments
+# Using command-line arguments
 md-exafs-average --input-dir feff_calculations --start 90000 --end 100000 --output chi_avg.dat
 ```
 
-## Command-Line Tools
-
-MD-EXAFS provides several command-line tools for different stages of the workflow:
-
-### md-exafs-process
-
-Process MD trajectories to generate FEFF input files.
+#### Path-Specific Averaging
+Process specific FEFF paths:
 
 ```bash
-md-exafs-process config.toml
-```
-
-This tool reads the trajectory file and creates FEFF input files for each selected atom in each frame, organized into directories for parallel processing.
-
-### md-exafs-feff-local
-
-Run FEFF calculations locally with parallel processing.
-
-```bash
-md-exafs-feff-local --base-dir feff_calculations --workers 10
-```
-
-Options:
-- `--base-dir`: Directory containing FEFF input files (required)
-- `--workers`: Number of parallel workers (required)
-
-### md-exafs-average
-
-Average chi(k) data from completed FEFF calculations.
-
-```bash
-# Using TOML config
-md-exafs-average --config averaging_config.toml
-
-# Using CLI arguments
-md-exafs-average --input-dir feff_calculations --start 90000 --end 100000 --output chi_avg.dat
-
-# Process specific FEFF paths
+# Paths 1-8
 md-exafs-average --input-dir feff_calculations --start 90000 --end 100000 --paths "[1,8]" --output chi_partial.dat
+
+# Specific paths only
+md-exafs-average --input-dir feff_calculations --start 90000 --end 100000 --paths "[1,3,5,7]" --output chi_selected.dat
 ```
 
-Options:
-- `--config`: Path to TOML configuration file
-- `--input-dir`: Directory containing FEFF calculations
-- `--start`: Starting frame number
-- `--end`: Ending frame number
-- `--output`: Output file for averaged chi(k) data
-- `--paths`: Process specific FEFF paths (e.g., "[1,8]" for paths 1-8, or "[1,3,5,7]" for specific paths)
-
-When using `--paths`:
-- Converts feffxxxx.dat files to chi(k) data
-- Sums paths within each atom folder (saved as chi_partial_0.dat)
-- Averages the sums across all atoms (saved as output file)
-- Automatically interpolates output to standard k-grid (0 to 20 Å⁻¹ with step 0.05)
-
-#### Multipath Feature
-
-For advanced path selection based on scattering type and distance, use the multipath feature via TOML configuration:
-
-```toml
-[averaging.multipath]
-paths = ["U-O", "U-O-O"]     # Select specific scattering paths
-max_distance = 3.0            # Maximum path distance in Angstroms
-num_processes = 4             # Parallel processing
-```
-
-This feature allows filtering paths by:
-- **Path type**: Full atom notation (e.g., "U-O" for single scattering, "U-O-O" for double scattering)
-- **Distance**: Maximum effective path length (reff)
-
-See `examples/multipath_averaging.toml` and `docs/multipath_feature.md` for detailed documentation.
-
-### md-exafs-md-input-gen
-
-Generate structure input files for MD simulations from CIF files.
-
-```bash
-md-exafs-md-input-gen --cp2k --input structure.cif --size 3,3,3 --output supercell.xyz
-```
-
-This tool reads CIF (Crystallographic Information File) format structures and generates supercells in formats suitable for MD simulations.
-
-Options:
-- `--cp2k`: Output in CP2K format (no header, element x y z)
-- `--input`: Input CIF file path (required)
-- `--size`: Supercell size as "nx,ny,nz" (e.g., "3,3,3" for 3×3×3) (required)
-- `--output`: Output file path (required)
-
-Example:
-```bash
-# Generate a 3×3×3 supercell of gold in CP2K format
-md-exafs-md-input-gen --cp2k --input Au.cif --size 3,3,3 --output Au_3x3x3.xyz
-
-# Generate a 2×2×2 supercell
-md-exafs-md-input-gen --cp2k --input UO2.cif --size 2,2,2 --output UO2_2x2x2.xyz
-```
-
-The CP2K format output consists of:
-- No header lines
-- One atom per line
-- Format: `Element  X_coordinate  Y_coordinate  Z_coordinate`
-- Coordinates in scientific notation (e.g., 1.2345678901234567E+00)
-
-## Configuration
-
-### Processing Configuration
-
-The main configuration file controls trajectory processing:
-
-- **[system]**: Project name, trajectory file, output directory
-- **[lattice]**: Lattice vectors and periodic boundary conditions
-- **[atoms]**: Element to atom type mapping
-- **[processing]**: Frame range, sampling, and parallelization settings
-- **[feff]**: FEFF executable path and input header template
-
-### Averaging Configuration
-
-Separate configuration for chi averaging:
+#### Multipath Analysis
+For advanced path selection by type and distance:
 
 ```toml
 [averaging]
 input_directory = "feff_calculations"
 frame_range = [90000, 100000]
-output_file = "chi_avg_100k.dat"
+output_file = "chi_multipath.dat"
+
+[averaging.multipath]
+paths = ["U-O", "U-U", "U-O-O"]    # Path types to include
+max_distance = [3.0, 4.5, 5.0]     # Max distance for each type
+num_processes = 8                   # Parallel workers
 ```
 
+### Database Feature
+
+For repeated averaging with different multipath configurations:
+
+#### Build Database
+```bash
+# Build from all FEFF calculations (one-time operation)
+md-exafs-average --build-database --input-dir feff_calculations --database chi_database.db --num-workers 8
+
+# Force rebuild
+md-exafs-average --build-database --input-dir feff_calculations --database chi_database.db --rebuild
+```
+
+#### Use Database
+```toml
+[averaging]
+input_directory = "feff_calculations"
+frame_range = [90000, 100000]  # Only these frames will be averaged
+output_file = "chi_database_avg.dat"
+
+[averaging.database]
+path = "chi_database.db"
+use_database = true
+
+[averaging.multipath]
+paths = ["U-O", "U-U"]
+max_distance = [3.0, 5.0]
+```
+
+See `docs/database_feature_README.md` for detailed documentation.
+
 ## Python API
+
+### Basic Usage
 
 ```python
 from md_exafs import load_config, process_trajectory, average_chi_files
 
-# Load and process
+# Process trajectory
 config = load_config("config.toml")
 process_trajectory(config)
 
@@ -278,36 +243,68 @@ average_chi_files(
 )
 ```
 
-## HPC Usage
+### Database Usage
 
-The package is designed for HPC environments:
+```python
+from md_exafs import build_database, average_chi_from_database
+from pathlib import Path
 
-1. **SLURM Integration**: Example script provided (modify for your HPC system)
-2. **Parallel FEFF**: Each FEFF calculation runs independently
-3. **Dynamic Load Balancing**: Workers process calculations from a shared queue
-4. **Scalable**: Works efficiently from small local runs to large HPC jobs
+# Build database
+build_database(
+    base_dir=Path("feff_calculations"),
+    db_path=Path("chi_database.db"),
+    num_workers=8
+)
+
+# Use database for averaging
+multipath_config = {
+    "paths": ["U-O", "U-U"],
+    "max_distance": [3.0, 5.0]
+}
+
+average_chi_from_database(
+    db_path=Path("chi_database.db"),
+    output_file="chi_avg.dat",
+    multipath_config=multipath_config,
+    frame_range=(90000, 100000)
+)
+```
+
+## Utility Tools
+
+### Structure Generator
+
+Generate MD input files from CIF structures:
+
+```bash
+# Create 3×3×3 supercell in CP2K format
+md-exafs-md-input-gen --cp2k --input structure.cif --size 3,3,3 --output supercell.xyz
+```
 
 ## Examples
 
-See the `examples/` directory for:
+The `examples/` directory contains:
 
-- `README.md` - Instructions for running the examples
-- `uo2_single_frame.xyz` - Single-frame UO₂ trajectory for testing
-- `uo2_config.toml` - UO₂ system configuration (configured for test data)
-- `averaging_config.toml` - Configuration for chi(k) averaging
-- `workflow_example.sh` - Complete workflow demonstration with local execution
-- `python_example.py` - Python API usage
-- `run_slurm.sh` - HPC batch script
+- `uo2_single_frame.xyz` - Test trajectory for quick validation
+- `uo2_config.toml` - Complete processing configuration
+- `averaging_config.toml` - Basic averaging configuration
+- `multipath_averaging.toml` - Multipath feature example
+- `averaging_database_config.toml` - Database-based averaging
+- `workflow_example.sh` - Complete workflow script
+- `run_slurm.sh` - HPC batch script template
 
-## Requirements
+## Documentation
 
-- Python ≥ 3.8
-- NumPy ≥ 1.20.0
-- OVITO ≥ 3.0.0
-- tqdm ≥ 4.60.0
-- tomli ≥ 2.0.0 (Python < 3.11)
-- ASE ≥ 3.22.0
-- xraylarch (for FEFF path processing)
+- `docs/multipath_feature.md` - Detailed multipath analysis guide
+- `docs/database_feature_README.md` - Database optimization guide
+- `examples/README.md` - Example walkthrough
+
+## HPC Considerations
+
+1. **Directory Distribution**: Files are distributed across `working_*` directories based on `cores_per_node`
+2. **Independent Calculations**: Each FEFF run is independent, enabling perfect parallel scaling
+3. **Memory Management**: Database building processes atoms in batches to manage memory
+4. **Load Balancing**: Workers dynamically pull from calculation queue
 
 ## License
 

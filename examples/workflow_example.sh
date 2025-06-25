@@ -59,4 +59,20 @@ else
 fi
 
 echo ""
+echo "Optional Step 4: Build database for faster multipath averaging..."
+echo "(Useful when testing different path combinations)"
+
+# Build database if chi.dat files exist
+if [ $num_chi -gt 0 ]; then
+    md-exafs-average --build-database --input-dir feff_calculations --database chi_example.db
+    
+    if [ -f "chi_example.db" ]; then
+        echo "✓ Database created: chi_example.db"
+        echo ""
+        echo "You can now use the database for fast averaging:"
+        echo "md-exafs-average --config averaging_database_config.toml --use-database --database chi_example.db"
+    fi
+fi
+
+echo ""
 echo "Workflow example complete!"

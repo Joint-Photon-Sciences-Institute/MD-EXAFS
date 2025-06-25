@@ -11,6 +11,8 @@ We provide a single-frame UO₂ trajectory for quick testing of the complete wor
 - `uo2_single_frame.xyz` - Single frame from a UO₂ MD simulation (96 atoms)
 - `uo2_config.toml` - Configuration file pre-configured for the test trajectory
 - `averaging_config.toml` - Configuration for averaging the chi(k) results
+- `multipath_averaging.toml` - Example of multipath feature configuration
+- `averaging_database_config.toml` - Example of database-based averaging
 - `workflow_example.sh` - Complete workflow script demonstrating all steps
 - `python_example.py` - Example of using MD-EXAFS as a Python library
 - `run_slurm.sh` - SLURM script for HPC execution (modify for your system)
@@ -61,6 +63,25 @@ This script will:
 - Run FEFF calculations locally
 - Average the results
 - Report the status of each step
+
+### Database Feature Example
+
+For faster multipath averaging (especially useful when experimenting with different path combinations):
+
+1. **Build the database** (one-time operation):
+   ```bash
+   md-exafs-average --build-database --input-dir feff_calculations --database chi_example.db
+   ```
+
+2. **Use the database for averaging**:
+   ```bash
+   md-exafs-average --config averaging_database_config.toml --use-database --database chi_example.db
+   ```
+
+The database stores pre-computed chi(k) data, providing 10-100x speedup for multipath averaging. This is particularly useful when:
+- Testing different path type combinations
+- Adjusting distance cutoffs
+- Averaging different frame ranges from the same dataset
 
 ### Adapting for Your System
 

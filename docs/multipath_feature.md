@@ -33,6 +33,8 @@ num_processes = 4             # Number of parallel processes (optional)
   - Double scattering: `"U-O-O"`, `"U-U-O"`, `"U-O-U"`
   - Triple scattering: `"U-O-U-O"`, etc.
 - **max_distance**: Maximum effective path length in Angstroms (optional)
+  - Can be a single value (applies to all paths) or a list
+  - Examples: `max_distance = 3.0` or `max_distance = [3.0, 4.5, 5.0]`
   - If not specified, no distance limit is applied
 - **num_processes**: Number of parallel processes for faster computation (optional)
   - Default: 1 (sequential processing)
@@ -84,6 +86,38 @@ The multipath averaging produces:
   - Number of paths selected
   - Frame range
 - Typical performance: ~1 atom/second per core
+
+## Database Integration
+
+The multipath feature works seamlessly with the database optimization:
+
+### Using Database for Multipath
+
+```toml
+[averaging]
+input_directory = "feff_calculations"
+frame_range = [90000, 100000]
+output_file = "chi_multipath_db.dat"
+
+[averaging.database]
+path = "chi_database.db"
+use_database = true
+
+[averaging.multipath]
+paths = ["U-O", "U-U", "U-O-O"]
+max_distance = [3.0, 4.5, 5.0]  # Different limits for each path type
+```
+
+### Performance Comparison
+
+- **File-based**: Parses FEFF files and converts to chi(k) every run
+- **Database-based**: Pre-computed chi(k) loaded instantly
+- **Speedup**: 10-100x faster for multipath averaging
+
+The database is particularly beneficial when:
+- Experimenting with different path combinations
+- Testing various distance cutoffs
+- Processing the same dataset multiple times
 
 ## Requirements
 

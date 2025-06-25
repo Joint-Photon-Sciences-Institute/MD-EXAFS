@@ -15,18 +15,26 @@ The database feature provides a significant performance improvement for multipat
 
 ### 1. Build the Database
 
-Build a database from your FEFF calculations:
+The database builder scans ALL frames and atoms in your FEFF calculations directory and pre-computes their chi(k) data. This is a one-time operation that processes everything it finds.
 
 ```bash
-# Command-line usage
-md-exafs-average --build-database feff_calculations --database chi_database.db
+# Basic usage - build from feff_calculations directory
+md-exafs-average --build-database --input-dir feff_calculations --database chi_database.db
 
-# With parallel processing (default: 4 workers)
-md-exafs-average --build-database feff_calculations --database chi_database.db --num-workers 8
+# With more parallel workers for faster processing (default: 4)
+md-exafs-average --build-database --input-dir feff_calculations --database chi_database.db --num-workers 8
 
-# Force rebuild if database exists
-md-exafs-average --build-database feff_calculations --database chi_database.db --rebuild
+# Force rebuild if database already exists
+md-exafs-average --build-database --input-dir feff_calculations --database chi_database.db --rebuild
+
+# Using a configuration file for input directory
+md-exafs-average --config averaging_config.toml --build-database --database chi_database.db
 ```
+
+**Important**: The database builder processes ALL frames it finds in the directory structure:
+- `working_*/frame_*/atom_*/feff*.dat`
+- Frame filtering happens during averaging, not during building
+- This allows you to query different frame ranges without rebuilding
 
 ### 2. Use Database for Averaging
 
