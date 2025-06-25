@@ -1,0 +1,31 @@
+# Example configuration for multipath averaging in MD-EXAFS
+
+[averaging]
+# Directory containing FEFF calculation results with feffxxxx.dat files
+input_directory = "reference_code_base/multipath_folders"
+
+# Frame range to include in averaging
+frame_range = [180360, 180400]
+
+# Output file for averaged chi data
+output_file = "chi_multipath.dat"
+
+# Multipath configuration (optional)
+# If not present, will average existing chi.dat files
+[averaging.multipath]
+# List of path types to include
+# Path types use full atom notation showing the scattering sequence
+# Examples:
+#   "U-O" - Single scattering through oxygen
+#   "U-U" - Single scattering through uranium  
+#   "U-O-O" - Double scattering through two oxygens
+#   "U-U-O" - Double scattering through uranium then oxygen
+paths = ["U-O", "U-O-O"]
+
+# Maximum effective path distance in Angstroms (optional)
+# If not specified, no distance limit is applied
+max_distance = 3.0
+
+# Number of parallel processes for faster processing (optional)
+# Default is 1 (sequential processing)
+num_processes = 4

@@ -3,7 +3,7 @@
 import os
 import argparse
 from pathlib import Path
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional, Any, Dict
 
 import numpy as np
 from tqdm import tqdm
@@ -16,13 +16,18 @@ except ImportError:
     LARCH_AVAILABLE = False
 
 from .config import load_config, ConfigError
+from .multipath import (
+    process_atom_folder_multipath,
+    process_atom_folder_wrapper
+)
 
 
 def average_chi_files(
     input_dir: str,
     frame_range: Tuple[int, int],
     output_file: str,
-    paths: Optional[List[int]] = None
+    paths: Optional[List[int]] = None,
+    multipath_config: Optional[Dict[str, Any]] = None
 ) -> None:
     """
     Average chi.dat files from FEFF calculations within specified frame range.
@@ -36,6 +41,10 @@ def average_chi_files(
                - Convert feffxxxx.dat files to chi(k)
                - Sum paths within each atom folder (saved as chi_partial_0.dat)
                - Average the sums across all atoms (saved as output_file)
+        multipath_config: Optional multipath configuration dictionary with keys:
+                         - paths: List of path types (e.g., ["U-O", "U-O-O"])
+                         - max_distance: Maximum path distance in Angstroms
+                         - num_processes: Number of parallel processes
     """
     input_path = Path(input_dir)
     if not input_path.exists():
@@ -44,7 +53,14 @@ def average_chi_files(
     start_frame, end_frame = frame_range
     
     # Check if we're processing paths or existing chi.dat files
-    if paths:
+    if multipath_config:
+        if not LARCH_AVAILABLE:
+            raise ImportError("xraylarch is required for processing FEFF paths. "
+                            "Please install it with: conda install -c conda-forge xraylarch")
+        
+        # Process using multipath configuration
+        _average_multipath(input_path, frame_range, output_file, multipath_config)
+    elif paths:
         if not LARCH_AVAILABLE:
             raise ImportError("xraylarch is required for processing FEFF paths. "
                             "Please install it with: conda install -c conda-forge xraylarch")
@@ -329,6 +345,107 @@ def _average_feff_paths(
         print("No data to average")
 
 
+def _average_multipath(
+    input_dir: Path,
+    frame_range: Tuple[int, int],
+    output_file: str,
+    multipath_config: Dict[str, Any]
+) -> None:
+    """Process FEFF paths using multipath configuration with optional multiprocessing."""
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+    
+    # Extract configuration
+    path_types = multipath_config.get('paths', [])
+    max_distance = multipath_config.get('max_distance', None)
+    num_processes = multipath_config.get('num_processes', 1)
+    
+    start_frame, end_frame = frame_range
+    
+    # Find all atom directories in the frame range
+    atom_dirs = _find_atom_directories(input_dir, start_frame, end_frame)
+    
+    if not atom_dirs:
+        print(f"No atom directories found in frame range {start_frame}-{end_frame}")
+        return
+    
+    print(f"Found {len(atom_dirs)} atom directories in frame range {start_frame}-{end_frame}")
+    print(f"Processing with multipath criteria:")
+    print(f"  Path types: {path_types if path_types else 'all'}")
+    print(f"  Max distance: {max_distance if max_distance else 'unlimited'} Å")
+    print(f"  Using {num_processes} process(es)")
+    
+    all_partial_chi = []
+    
+    if num_processes > 1:
+        # Parallel processing
+        with ProcessPoolExecutor(max_workers=num_processes) as executor:
+            # Submit all tasks
+            future_to_dir = {
+                executor.submit(process_atom_folder_wrapper, (atom_dir, path_types, max_distance)): atom_dir 
+                for atom_dir in atom_dirs
+            }
+            
+            # Process results as they complete
+            for future in tqdm(as_completed(future_to_dir), total=len(atom_dirs), 
+                              desc="Processing atom directories"):
+                atom_dir = future_to_dir[future]
+                try:
+                    _, summed_chi = future.result()
+                    if summed_chi is not None:
+                        # Save summed chi for this atom
+                        partial_file = atom_dir / "chi_multipath.dat"
+                        np.savetxt(partial_file, summed_chi, fmt='%.6f',
+                                  header="k(A^-1)  chi(k) - Sum of paths matching multipath criteria")
+                        all_partial_chi.append(summed_chi)
+                except Exception as e:
+                    print(f"Error processing {atom_dir}: {e}")
+    else:
+        # Sequential processing
+        larch_interp = Interpreter()
+        
+        for atom_dir in tqdm(atom_dirs, desc="Processing atom directories"):
+            summed_chi = process_atom_folder_multipath(atom_dir, path_types, max_distance, larch_interp)
+            if summed_chi is not None:
+                # Save summed chi for this atom
+                partial_file = atom_dir / "chi_multipath.dat"
+                np.savetxt(partial_file, summed_chi, fmt='%.6f',
+                          header="k(A^-1)  chi(k) - Sum of paths matching multipath criteria")
+                all_partial_chi.append(summed_chi)
+    
+    if all_partial_chi:
+        # Average all partial chi files
+        final_averaged = _average_chi_data(all_partial_chi)
+        
+        # Interpolate to standard k-grid
+        from scipy.interpolate import interp1d
+        
+        # Create standard k-grid
+        k_standard = np.arange(0, 20.05, 0.05)
+        
+        # Extract k and chi from averaged data
+        k_orig = final_averaged[:, 0]
+        chi_orig = final_averaged[:, 1]
+        
+        # Create interpolation function
+        f_interp = interp1d(k_orig, chi_orig, kind='cubic',
+                           bounds_error=False, fill_value='extrapolate')
+        
+        # Interpolate to standard grid
+        chi_interp = f_interp(k_standard)
+        
+        # Create final data array
+        final_data = np.column_stack((k_standard, chi_interp))
+        
+        # Save the final averaged and interpolated data
+        np.savetxt(output_file, final_data, fmt='%.6f',
+                  header="k(A^-1)  chi(k) - Average of multipath sums across all atoms (interpolated to k=0:20:0.05)")
+        print(f"Final averaged data saved to {output_file}")
+        print(f"Averaged over {len(all_partial_chi)} atom folders")
+        print(f"Interpolated to standard k-grid: 0 to 20 Å⁻¹ with step 0.05")
+    else:
+        print("No data to average")
+
+
 def _parse_paths_arg(paths_str: str) -> Optional[List[int]]:
     """Parse paths argument like '[1,8]' to list of integers."""
     if not paths_str:
@@ -406,6 +523,8 @@ def main():
             
             # Check for paths in config
             paths = None
+            multipath_config = None
+            
             if "paths" in averaging:
                 paths_config = averaging["paths"]
                 if isinstance(paths_config, list):
@@ -414,6 +533,10 @@ def main():
                     paths = _parse_paths_arg(paths_config)
                 else:
                     print(f"Warning: Invalid paths format in config: {paths_config}")
+            
+            # Check for multipath configuration
+            if "multipath" in averaging:
+                multipath_config = averaging["multipath"]
             
         except ConfigError as e:
             print(f"Configuration error: {e}")
@@ -429,6 +552,7 @@ def main():
         frame_range = (args.start, args.end)
         output_file = args.output
         paths = _parse_paths_arg(args.paths) if args.paths else None
+        multipath_config = None  # Multipath only available via TOML
         
         # Validate frame range
         if args.start >= args.end:
@@ -444,7 +568,7 @@ def main():
     
     # Run averaging
     try:
-        average_chi_files(input_dir, frame_range, output_file, paths)
+        average_chi_files(input_dir, frame_range, output_file, paths, multipath_config)
     except Exception as e:
         print(f"Error during averaging: {e}")
         return 1

@@ -165,6 +165,33 @@ def _validate_averaging_config(config: Dict[str, Any]) -> None:
     input_dir = Path(averaging["input_directory"])
     if not input_dir.exists():
         raise ConfigError(f"Input directory not found: {input_dir}")
+    
+    # Validate optional multipath configuration if present
+    if "multipath" in averaging:
+        multipath = averaging["multipath"]
+        if not isinstance(multipath, dict):
+            raise ConfigError("multipath must be a dictionary/table")
+        
+        # Validate paths list
+        if "paths" in multipath:
+            paths = multipath["paths"]
+            if not isinstance(paths, list):
+                raise ConfigError("multipath.paths must be a list of strings")
+            for path in paths:
+                if not isinstance(path, str):
+                    raise ConfigError("multipath.paths must contain only strings")
+        
+        # Validate max_distance
+        if "max_distance" in multipath:
+            max_distance = multipath["max_distance"]
+            if not isinstance(max_distance, (int, float)) or max_distance <= 0:
+                raise ConfigError("multipath.max_distance must be a positive number")
+        
+        # Validate num_processes
+        if "num_processes" in multipath:
+            num_processes = multipath["num_processes"]
+            if not isinstance(num_processes, int) or num_processes < 1:
+                raise ConfigError("multipath.num_processes must be a positive integer")
 
 
 def get_element_data() -> Dict[int, Tuple[str, str]]:
