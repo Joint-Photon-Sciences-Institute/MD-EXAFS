@@ -12,6 +12,7 @@ from typing import List, Dict, Optional, Tuple, Any
 import numpy as np
 import json
 from dataclasses import dataclass
+from scipy.interpolate import interp1d
 
 from .db_schema import bytes_to_numpy
 
@@ -250,7 +251,9 @@ class ChiDatabaseQuery:
                         k_min: float = 0.0, k_max: float = 20.0, 
                         k_step: float = 0.05) -> Optional[np.ndarray]:
         """
-        Average chi(k) data for specified paths and interpolate to standard grid.
+        Average chi(k) data for specified paths.
+        
+        NOTE: All paths are interpolated to standard grid BEFORE averaging.
         
         Args:
             path_ids: List of path IDs to average
@@ -273,12 +276,14 @@ class ChiDatabaseQuery:
         # Create standard k-grid
         standard_k = np.arange(k_min, k_max + k_step, k_step)
         
-        # Interpolate all chi data to standard grid
+        # Interpolate all chi data to standard grid BEFORE averaging
         interpolated_chi = []
         
         for path_id, (k_grid, chi_values) in chi_data.items():
-            # Interpolate to standard grid
-            chi_interp = np.interp(standard_k, k_grid, chi_values, left=0, right=0)
+            # Interpolate to standard grid using cubic splines for smooth curves
+            f_interp = interp1d(k_grid, chi_values, kind='cubic', 
+                               bounds_error=False, fill_value=0.0)
+            chi_interp = f_interp(standard_k)
             interpolated_chi.append(chi_interp)
         
         # Average the interpolated chi values
@@ -292,7 +297,9 @@ class ChiDatabaseQuery:
                      k_min: float = 0.0, k_max: float = 20.0,
                      k_step: float = 0.05) -> Optional[np.ndarray]:
         """
-        Sum chi(k) data for specified paths and interpolate to standard grid.
+        Sum chi(k) data for specified paths.
+        
+        NOTE: All paths are interpolated to standard grid BEFORE summing.
         
         Args:
             path_ids: List of path IDs to sum
@@ -315,12 +322,14 @@ class ChiDatabaseQuery:
         # Create standard k-grid
         standard_k = np.arange(k_min, k_max + k_step, k_step)
         
-        # Interpolate all chi data to standard grid and sum
+        # Initialize sum array - all paths will be interpolated to this grid BEFORE summing
         chi_sum = np.zeros_like(standard_k)
         
         for path_id, (k_grid, chi_values) in chi_data.items():
-            # Interpolate to standard grid
-            chi_interp = np.interp(standard_k, k_grid, chi_values, left=0, right=0)
+            # Interpolate to standard grid using cubic splines for smooth curves
+            f_interp = interp1d(k_grid, chi_values, kind='cubic',
+                               bounds_error=False, fill_value=0.0)
+            chi_interp = f_interp(standard_k)
             chi_sum += chi_interp
         
         return np.column_stack((standard_k, chi_sum))
@@ -333,8 +342,9 @@ class ChiDatabaseQuery:
         
         This is the physically correct approach:
         1. Group paths by (frame, atom_id)
-        2. Sum chi(k) within each atom
-        3. Average the per-atom sums
+        2. Interpolate all paths to standard k-grid
+        3. Sum chi(k) within each atom (on interpolated data)
+        4. Average the per-atom sums
         
         Args:
             path_ids: List of path IDs to process
@@ -388,8 +398,10 @@ class ChiDatabaseQuery:
                 chi_sum = np.zeros_like(standard_k)
                 
                 for path_id, (k_grid, chi_values) in chi_data.items():
-                    # Interpolate to standard grid
-                    chi_interp = np.interp(standard_k, k_grid, chi_values, left=0, right=0)
+                    # Interpolate each path to standard grid BEFORE summing using cubic splines
+                    f_interp = interp1d(k_grid, chi_values, kind='cubic',
+                                       bounds_error=False, fill_value=0.0)
+                    chi_interp = f_interp(standard_k)
                     chi_sum += chi_interp
                 
                 atom_sums.append(chi_sum)
