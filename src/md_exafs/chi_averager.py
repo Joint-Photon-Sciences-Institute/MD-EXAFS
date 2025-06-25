@@ -525,9 +525,9 @@ def average_chi_from_database(
             print("No paths found matching criteria")
             return
         
-        # Average chi data
-        print(f"Averaging {len(all_path_ids)} total paths...")
-        averaged_data = db.average_chi_data(all_path_ids)
+        # Average chi data using correct method (sum within atoms, then average)
+        print(f"Processing {len(all_path_ids)} total paths...")
+        averaged_data = db.sum_chi_within_atoms_then_average(all_path_ids)
         
         if averaged_data is None:
             print("No chi data found for selected paths")
@@ -535,7 +535,7 @@ def average_chi_from_database(
         
         # Save the averaged data
         np.savetxt(output_file, averaged_data, fmt='%.6f',
-                  header="k(A^-1)  chi(k) - Average of paths from database (k=0:20:0.05)")
+                  header="k(A^-1)  chi(k) - Sum within atoms then average across atoms (k=0:20:0.05)")
         print(f"Averaged data saved to {output_file}")
         
         # Print some statistics

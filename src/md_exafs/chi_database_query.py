@@ -324,6 +324,84 @@ class ChiDatabaseQuery:
             chi_sum += chi_interp
         
         return np.column_stack((standard_k, chi_sum))
+    
+    def sum_chi_within_atoms_then_average(self, path_ids: List[int],
+                                          k_min: float = 0.0, k_max: float = 20.0,
+                                          k_step: float = 0.05) -> Optional[np.ndarray]:
+        """
+        Sum chi(k) data within each atom, then average across atoms.
+        
+        This is the physically correct approach:
+        1. Group paths by (frame, atom_id)
+        2. Sum chi(k) within each atom
+        3. Average the per-atom sums
+        
+        Args:
+            path_ids: List of path IDs to process
+            k_min: Minimum k value for output grid
+            k_max: Maximum k value for output grid
+            k_step: Step size for output grid
+            
+        Returns:
+            Numpy array with columns [k, chi_average] or None if no data
+        """
+        if not path_ids:
+            return None
+        
+        # Get path metadata to group by atom
+        placeholders = ','.join('?' * len(path_ids))
+        sql = f"""
+            SELECT p.id, p.frame, p.atom_id
+            FROM paths p
+            WHERE p.id IN ({placeholders})
+        """
+        
+        cursor = self._conn.execute(sql, path_ids)
+        path_info = {}
+        for row in cursor:
+            path_info[row['id']] = (row['frame'], row['atom_id'])
+        
+        # Group paths by (frame, atom_id)
+        from collections import defaultdict
+        atom_groups = defaultdict(list)
+        
+        for path_id in path_ids:
+            if path_id in path_info:
+                frame, atom_id = path_info[path_id]
+                atom_groups[(frame, atom_id)].append(path_id)
+        
+        logger.info(f"Processing {len(atom_groups)} unique atoms")
+        
+        # Create standard k-grid
+        standard_k = np.arange(k_min, k_max + k_step, k_step)
+        
+        # Process each atom: sum its paths
+        atom_sums = []
+        
+        for (frame, atom_id), atom_path_ids in atom_groups.items():
+            # Get chi data for this atom's paths
+            chi_data = self.get_chi_data(atom_path_ids)
+            
+            if chi_data:
+                # Sum all paths for this atom
+                chi_sum = np.zeros_like(standard_k)
+                
+                for path_id, (k_grid, chi_values) in chi_data.items():
+                    # Interpolate to standard grid
+                    chi_interp = np.interp(standard_k, k_grid, chi_values, left=0, right=0)
+                    chi_sum += chi_interp
+                
+                atom_sums.append(chi_sum)
+        
+        if not atom_sums:
+            return None
+        
+        # Average across atoms
+        chi_average = np.mean(atom_sums, axis=0)
+        
+        logger.info(f"Averaged {len(atom_sums)} atom sums")
+        
+        return np.column_stack((standard_k, chi_average))
 
 
 def query_and_average_multipath(db_path: Path, 
