@@ -9,12 +9,15 @@ for fast subsequent access.
 import argparse
 import sqlite3
 import logging
+import os
+import sys
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Any
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed, TimeoutError
 import numpy as np
 from tqdm import tqdm
 import json
+import time
 
 from .db_schema import (
     create_database, validate_database, insert_path_metadata,
@@ -33,6 +36,25 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Global variable to store Larch interpreter per process
+_LARCH_INTERPRETER = None
+
+
+def _get_larch_interpreter():
+    """Get or create a Larch interpreter for this process."""
+    global _LARCH_INTERPRETER
+    if _LARCH_INTERPRETER is None:
+        logger.debug(f"Creating Larch interpreter for process {os.getpid()}")
+        _LARCH_INTERPRETER = Interpreter()
+    return _LARCH_INTERPRETER
+
+
+def _init_worker():
+    """Initialize worker process with Larch interpreter."""
+    # Pre-create the interpreter when worker starts
+    _get_larch_interpreter()
+    logger.debug(f"Worker {os.getpid()} initialized with Larch")
+
 
 def _convert_feffdat_to_chi(feff_file: Path) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
     """
@@ -48,8 +70,8 @@ def _convert_feffdat_to_chi(feff_file: Path) -> Tuple[Optional[np.ndarray], Opti
         return None, None
         
     try:
-        # Create a new larch interpreter for this process
-        larch_interp = Interpreter()
+        # Get cached interpreter for this process
+        larch_interp = _get_larch_interpreter()
         
         # Create a FeffPath object
         path = feffpath(str(feff_file), _larch=larch_interp)
@@ -154,9 +176,26 @@ def scan_feff_calculations(base_dir: Path) -> List[Tuple[Path, int, int]]:
     
     # Find all directories containing feff*.dat files
     logger.info(f"Scanning {base_dir} for FEFF calculations...")
+    logger.info("This may take a while for large datasets...")
     
     # Use rglob to find all feff*.dat files recursively
-    feff_files = list(base_dir.rglob("feff*.dat"))
+    start_time = time.time()
+    feff_files = []
+    file_count = 0
+    
+    # Show progress during scanning
+    for feff_file in base_dir.rglob("feff*.dat"):
+        feff_files.append(feff_file)
+        file_count += 1
+        
+        # Log progress every 10000 files
+        if file_count % 10000 == 0:
+            elapsed = time.time() - start_time
+            rate = file_count / elapsed
+            logger.info(f"  Scanned {file_count} files so far ({rate:.0f} files/sec)...")
+    
+    scan_time = time.time() - start_time
+    logger.info(f"Scan complete: found {len(feff_files)} files in {scan_time:.1f} seconds")
     
     if not feff_files:
         logger.warning(f"No feff*.dat files found in {base_dir}")
@@ -211,6 +250,86 @@ def scan_feff_calculations(base_dir: Path) -> List[Tuple[Path, int, int]]:
     return atom_folders
 
 
+def run_diagnostic(base_dir: Path, num_workers: int = 4) -> bool:
+    """
+    Run diagnostic tests before database building.
+    
+    Args:
+        base_dir: Base directory containing FEFF calculations
+        num_workers: Number of workers to test
+        
+    Returns:
+        True if all tests pass
+    """
+    logger.info("Running diagnostic tests...")
+    logger.info("=" * 60)
+    
+    # Test 1: Check xraylarch availability
+    logger.info("Test 1: Checking xraylarch availability...")
+    if not LARCH_AVAILABLE:
+        logger.error("✗ xraylarch is not available. Install with: conda install -c conda-forge xraylarch")
+        return False
+    logger.info("✓ xraylarch is available")
+    
+    # Test 2: Check directory exists and is readable
+    logger.info("\nTest 2: Checking directory access...")
+    if not base_dir.exists():
+        logger.error(f"✗ Directory not found: {base_dir}")
+        return False
+    if not os.access(base_dir, os.R_OK):
+        logger.error(f"✗ Directory not readable: {base_dir}")
+        return False
+    logger.info(f"✓ Directory is accessible: {base_dir}")
+    
+    # Test 3: Quick file scan
+    logger.info("\nTest 3: Quick file scan...")
+    feff_count = 0
+    for feff_file in base_dir.rglob("feff*.dat"):
+        feff_count += 1
+        if feff_count >= 10:
+            break
+    
+    if feff_count == 0:
+        logger.error("✗ No feff*.dat files found")
+        return False
+    logger.info(f"✓ Found FEFF files (sampled {feff_count})")
+    
+    # Test 4: Test multiprocessing with Larch
+    logger.info(f"\nTest 4: Testing multiprocessing with {num_workers} workers...")
+    try:
+        def test_worker(dummy):
+            _init_worker()
+            return os.getpid()
+        
+        with ProcessPoolExecutor(max_workers=min(2, num_workers)) as executor:
+            futures = [executor.submit(test_worker, i) for i in range(2)]
+            pids = [f.result(timeout=30) for f in futures]
+        
+        logger.info(f"✓ Multiprocessing works with PIDs: {pids}")
+    except Exception as e:
+        logger.error(f"✗ Multiprocessing test failed: {e}")
+        return False
+    
+    # Test 5: Test database creation
+    logger.info("\nTest 5: Testing database creation...")
+    test_db = base_dir / "test_diagnostic.db"
+    try:
+        create_database(test_db)
+        if test_db.exists():
+            logger.info("✓ Database creation works")
+            test_db.unlink()
+        else:
+            logger.error("✗ Database file not created")
+            return False
+    except Exception as e:
+        logger.error(f"✗ Database creation failed: {e}")
+        return False
+    
+    logger.info("\n" + "=" * 60)
+    logger.info("✓ All diagnostic tests passed!")
+    return True
+
+
 def build_database(base_dir: Path, db_path: Path, num_workers: int = 4, 
                   rebuild: bool = False) -> None:
     """
@@ -257,22 +376,29 @@ def build_database(base_dir: Path, db_path: Path, num_workers: int = 4,
         batch_size = 100
         total_paths_processed = 0
         
-        with tqdm(total=len(atom_folders), desc="Processing atoms") as pbar:
-            for i in range(0, len(atom_folders), batch_size):
-                batch = atom_folders[i:i + batch_size]
-                
-                # Process batch in parallel
-                with ProcessPoolExecutor(max_workers=num_workers) as executor:
-                    futures = {
-                        executor.submit(process_atom_folder, atom_dir, frame, atom_id): (atom_dir, frame, atom_id)
-                        for atom_dir, frame, atom_id in batch
-                    }
+        # Create a persistent pool with worker initialization
+        with ProcessPoolExecutor(
+            max_workers=num_workers,
+            initializer=_init_worker
+        ) as executor:
+            
+            with tqdm(total=len(atom_folders), desc="Processing atoms") as pbar:
+                for i in range(0, len(atom_folders), batch_size):
+                    batch = atom_folders[i:i + batch_size]
                     
-                    for future in as_completed(futures):
-                        atom_dir, frame, atom_id = futures[future]
+                    # Submit batch for processing
+                    futures = {}
+                    for atom_dir, frame, atom_id in batch:
+                        # Submit with timeout
+                        future = executor.submit(process_atom_folder, atom_dir, frame, atom_id)
+                        futures[future] = (atom_dir, frame, atom_id)
+                    
+                    # Process results as they complete
+                    for future in as_completed(futures, timeout=300):  # 5 minute timeout per batch
+                        atom_dir, _, _ = futures[future]
                         
                         try:
-                            results = future.result()
+                            results = future.result(timeout=60)  # 1 minute timeout per atom
                             
                             # Insert results into database
                             for result in results:
@@ -292,13 +418,15 @@ def build_database(base_dir: Path, db_path: Path, num_workers: int = 4,
                                 
                                 total_paths_processed += 1
                             
+                        except TimeoutError:
+                            logger.error(f"Timeout processing {atom_dir}")
                         except Exception as e:
                             logger.error(f"Failed to process {atom_dir}: {e}")
                         
                         pbar.update(1)
-                
-                # Commit after each batch
-                conn.commit()
+                    
+                    # Commit after each batch
+                    conn.commit()
         
         logger.info(f"Processed {total_paths_processed} paths total")
         
@@ -349,6 +477,11 @@ def main():
         action="store_true",
         help="Enable verbose logging"
     )
+    parser.add_argument(
+        "--diagnostic",
+        action="store_true",
+        help="Run diagnostic tests before building database"
+    )
     
     args = parser.parse_args()
     
@@ -358,6 +491,18 @@ def main():
         level=level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
+    
+    # Run diagnostic if requested
+    if args.diagnostic:
+        if not run_diagnostic(args.base_dir, args.num_workers):
+            logger.error("Diagnostic tests failed. Fix issues before building database.")
+            return 1
+        
+        # Ask if user wants to continue
+        response = input("\nContinue with database building? (y/n): ")
+        if response.lower() != 'y':
+            logger.info("Database building cancelled.")
+            return 0
     
     # Build database
     try:
@@ -369,8 +514,10 @@ def main():
         )
     except Exception as e:
         logger.error(f"Database building failed: {e}")
-        raise
+        return 1
+    
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
