@@ -327,7 +327,7 @@ class ChiDatabaseQuery:
     
     def sum_chi_within_atoms_then_average(self, path_ids: List[int],
                                           k_min: float = 0.0, k_max: float = 20.0,
-                                          k_step: float = 0.05) -> Optional[np.ndarray]:
+                                          k_step: float = 0.05) -> Tuple[Optional[np.ndarray], int]:
         """
         Sum chi(k) data within each atom, then average across atoms.
         
@@ -343,10 +343,10 @@ class ChiDatabaseQuery:
             k_step: Step size for output grid
             
         Returns:
-            Numpy array with columns [k, chi_average] or None if no data
+            Tuple of (numpy array with columns [k, chi_average], number of atoms) or (None, 0) if no data
         """
         if not path_ids:
-            return None
+            return None, 0
         
         # Get path metadata to group by atom
         placeholders = ','.join('?' * len(path_ids))
@@ -370,7 +370,8 @@ class ChiDatabaseQuery:
                 frame, atom_id = path_info[path_id]
                 atom_groups[(frame, atom_id)].append(path_id)
         
-        logger.info(f"Processing {len(atom_groups)} unique atoms")
+        num_atoms = len(atom_groups)
+        logger.info(f"Processing {num_atoms} unique atoms")
         
         # Create standard k-grid
         standard_k = np.arange(k_min, k_max + k_step, k_step)
@@ -394,14 +395,14 @@ class ChiDatabaseQuery:
                 atom_sums.append(chi_sum)
         
         if not atom_sums:
-            return None
+            return None, 0
         
         # Average across atoms
         chi_average = np.mean(atom_sums, axis=0)
         
         logger.info(f"Averaged {len(atom_sums)} atom sums")
         
-        return np.column_stack((standard_k, chi_average))
+        return np.column_stack((standard_k, chi_average)), num_atoms
 
 
 def query_and_average_multipath(db_path: Path, 

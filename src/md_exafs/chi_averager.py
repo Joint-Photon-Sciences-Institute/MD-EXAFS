@@ -527,16 +527,21 @@ def average_chi_from_database(
         
         # Average chi data using correct method (sum within atoms, then average)
         print(f"Processing {len(all_path_ids)} total paths...")
-        averaged_data = db.sum_chi_within_atoms_then_average(all_path_ids)
+        averaged_data, num_atoms = db.sum_chi_within_atoms_then_average(all_path_ids)
         
         if averaged_data is None:
             print("No chi data found for selected paths")
             return
         
+        # Print detailed information about the averaging
+        print(f"Found {num_atoms} unique atoms")
+        print(f"Summing paths within each atom, then averaging across all {num_atoms} atoms")
+        
         # Save the averaged data
         np.savetxt(output_file, averaged_data, fmt='%.6f',
-                  header="k(A^-1)  chi(k) - Sum within atoms then average across atoms (k=0:20:0.05)")
+                  header="k(A^-1)  chi(k) - Sum within atoms then average across atoms (interpolated to k=0:20:0.05)")
         print(f"Averaged data saved to {output_file}")
+        print(f"Data interpolated to uniform k-grid: 0 to 20 Å⁻¹ with step 0.05")
         
         # Print some statistics
         unique_path_types = db.get_unique_path_types()
