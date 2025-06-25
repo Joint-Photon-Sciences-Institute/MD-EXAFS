@@ -1,0 +1,39 @@
+# Example configuration for database-based chi(k) averaging
+
+[averaging]
+# Input directory containing feff_calculations
+input_directory = "feff_calculations"
+
+# Frame range to average
+frame_range = [90000, 90100]
+
+# Output file for averaged chi data
+output_file = "averaged_chi_database.dat"
+
+# Database configuration
+[averaging.database]
+# Path to the chi(k) database file
+path = "chi_database.db"
+
+# Build database if it doesn't exist (optional, default: false)
+build = true
+
+# Use database for averaging (optional, default: true if database section exists)
+use_database = true
+
+# Force rebuild even if database exists (optional, default: false)
+rebuild = false
+
+# Multipath configuration
+[averaging.multipath]
+# Path types to include in the averaging
+# Use full atom notation (e.g., "U-O" for uranium-oxygen single scattering)
+paths = ["U-O", "U-U", "U-O-O"]
+
+# Maximum distance for each path type (in Angstroms)
+# Can be a single value (applies to all paths) or a list
+max_distance = [3.0, 4.5, 5.0]  # Different limits for each path type
+# Or use a single value: max_distance = 6.5
+
+# Number of parallel processes (optional, default: 4)
+num_processes = 8

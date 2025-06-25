@@ -184,14 +184,45 @@ def _validate_averaging_config(config: Dict[str, Any]) -> None:
         # Validate max_distance
         if "max_distance" in multipath:
             max_distance = multipath["max_distance"]
-            if not isinstance(max_distance, (int, float)) or max_distance <= 0:
-                raise ConfigError("multipath.max_distance must be a positive number")
+            # Can be a single number or a list of numbers
+            if isinstance(max_distance, (int, float)):
+                if max_distance <= 0:
+                    raise ConfigError("multipath.max_distance must be positive")
+            elif isinstance(max_distance, list):
+                for dist in max_distance:
+                    if not isinstance(dist, (int, float)) or dist <= 0:
+                        raise ConfigError("All values in multipath.max_distance must be positive numbers")
+            else:
+                raise ConfigError("multipath.max_distance must be a number or list of numbers")
         
         # Validate num_processes
         if "num_processes" in multipath:
             num_processes = multipath["num_processes"]
             if not isinstance(num_processes, int) or num_processes < 1:
                 raise ConfigError("multipath.num_processes must be a positive integer")
+    
+    # Validate optional database configuration if present
+    if "database" in averaging:
+        database = averaging["database"]
+        if isinstance(database, str):
+            # Simple string path is allowed
+            pass
+        elif isinstance(database, dict):
+            # Dictionary with options
+            if "path" in database:
+                if not isinstance(database["path"], str):
+                    raise ConfigError("database.path must be a string")
+            if "build" in database:
+                if not isinstance(database["build"], bool):
+                    raise ConfigError("database.build must be a boolean")
+            if "use_database" in database:
+                if not isinstance(database["use_database"], bool):
+                    raise ConfigError("database.use_database must be a boolean")
+            if "rebuild" in database:
+                if not isinstance(database["rebuild"], bool):
+                    raise ConfigError("database.rebuild must be a boolean")
+        else:
+            raise ConfigError("database must be a string path or a dictionary with options")
 
 
 def get_element_data() -> Dict[int, Tuple[str, str]]:

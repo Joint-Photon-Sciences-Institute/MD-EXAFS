@@ -20,6 +20,8 @@ from .multipath import (
     process_atom_folder_multipath,
     process_atom_folder_wrapper
 )
+from .build_chi_database import build_database
+from .chi_database_query import ChiDatabaseQuery, PathQuery
 
 
 def average_chi_files(
@@ -446,6 +448,101 @@ def _average_multipath(
         print("No data to average")
 
 
+def average_chi_from_database(
+    db_path: Path,
+    output_file: str,
+    multipath_config: Dict[str, Any],
+    frame_range: Optional[Tuple[int, int]] = None
+) -> None:
+    """
+    Average chi(k) data using the pre-built database.
+    
+    Args:
+        db_path: Path to the chi database
+        output_file: Path to save averaged chi data
+        multipath_config: Multipath configuration dictionary with keys:
+                         - paths: List of path types (e.g., ["U-O", "U-O-O"])
+                         - max_distance: List of maximum distances for each path type
+        frame_range: Optional tuple of (start_frame, end_frame) to include
+    """
+    print(f"Using database: {db_path}")
+    
+    # Parse multipath configuration
+    if "paths" not in multipath_config:
+        raise ValueError("multipath_config must contain 'paths' key")
+    
+    path_types = multipath_config["paths"]
+    
+    # Handle max_distance configuration
+    if "max_distance" in multipath_config:
+        max_distances = multipath_config["max_distance"]
+        if isinstance(max_distances, (int, float)):
+            # Single value applies to all path types
+            max_distances = [max_distances] * len(path_types)
+        elif not isinstance(max_distances, list):
+            max_distances = [max_distances]
+    else:
+        # No distance limit
+        max_distances = [None] * len(path_types)
+    
+    # Ensure we have a max_distance for each path type
+    if len(max_distances) < len(path_types):
+        # Pad with the last value or None
+        last_val = max_distances[-1] if max_distances else None
+        max_distances.extend([last_val] * (len(path_types) - len(max_distances)))
+    
+    # Prepare frames list if frame_range is specified
+    frames = None
+    if frame_range:
+        start_frame, end_frame = frame_range
+        # Query database to find which frames actually exist
+        with ChiDatabaseQuery(db_path) as db:
+            frame_counts = db.get_frame_atom_counts()
+            available_frames = sorted(frame_counts.keys())
+            frames = [f for f in available_frames if start_frame <= f <= end_frame]
+            print(f"Found {len(frames)} frames in range {start_frame}-{end_frame}")
+    
+    # Query and average data
+    with ChiDatabaseQuery(db_path) as db:
+        all_path_ids = []
+        
+        # Query each path type
+        for path_type, max_dist in zip(path_types, max_distances):
+            query = PathQuery(
+                path_types=[path_type],
+                max_reff=max_dist,
+                frames=frames
+            )
+            
+            paths = db.query_paths(query)
+            path_ids = [p['id'] for p in paths]
+            all_path_ids.extend(path_ids)
+            
+            print(f"Found {len(path_ids)} paths of type '{path_type}'" + 
+                  (f" with reff <= {max_dist}" if max_dist else ""))
+        
+        if not all_path_ids:
+            print("No paths found matching criteria")
+            return
+        
+        # Average chi data
+        print(f"Averaging {len(all_path_ids)} total paths...")
+        averaged_data = db.average_chi_data(all_path_ids)
+        
+        if averaged_data is None:
+            print("No chi data found for selected paths")
+            return
+        
+        # Save the averaged data
+        np.savetxt(output_file, averaged_data, fmt='%.6f',
+                  header="k(A^-1)  chi(k) - Average of paths from database (k=0:20:0.05)")
+        print(f"Averaged data saved to {output_file}")
+        
+        # Print some statistics
+        unique_path_types = db.get_unique_path_types()
+        print(f"Database contains {len(unique_path_types)} unique path types")
+
+
 def _parse_paths_arg(paths_str: str) -> Optional[List[int]]:
     """Parse paths argument like '[1,8]' to list of integers."""
     if not paths_str:
@@ -503,6 +600,34 @@ def main():
         '--paths',
         type=str,
         help='Path numbers to process, e.g., "[1,8]" for paths 1-8 or "[1,3,5,7]" for specific paths'
+    )
+    
+    # Database-related arguments
+    parser.add_argument(
+        '--build-database',
+        action='store_true',
+        help='Build chi(k) database from FEFF calculations'
+    )
+    parser.add_argument(
+        '--database',
+        type=str,
+        help='Path to chi(k) database file'
+    )
+    parser.add_argument(
+        '--use-database',
+        action='store_true',
+        help='Use database for averaging instead of file-based processing'
+    )
+    parser.add_argument(
+        '--rebuild',
+        action='store_true',
+        help='Rebuild database even if it exists'
+    )
+    parser.add_argument(
+        '--num-workers',
+        type=int,
+        default=4,
+        help='Number of parallel workers for database building (default: 4)'
     )
     
     args = parser.parse_args()
@@ -566,7 +691,68 @@ def main():
         parser.print_help()
         return 1
     
-    # Run averaging
+    # Handle database building
+    if args.build_database:
+        if not args.database:
+            print("Error: --database required when using --build-database")
+            return 1
+        
+        if not args.input_dir and not input_dir:
+            print("Error: Input directory required for database building")
+            return 1
+        
+        db_path = Path(args.database)
+        base_dir = Path(args.input_dir if args.input_dir else input_dir)
+        
+        try:
+            build_database(base_dir, db_path, 
+                         num_workers=args.num_workers,
+                         rebuild=args.rebuild)
+            return 0
+        except Exception as e:
+            print(f"Error building database: {e}")
+            return 1
+    
+    # Handle database-based averaging
+    use_database = args.use_database
+    if args.config and 'config' in locals():
+        use_database = use_database or ("database" in config.get("averaging", {}))
+    
+    if use_database:
+        # Determine database path
+        if args.database:
+            db_path = Path(args.database)
+        elif args.config and 'config' in locals() and "database" in config.get("averaging", {}):
+            db_config = config["averaging"]["database"]
+            if isinstance(db_config, dict) and "path" in db_config:
+                db_path = Path(db_config["path"])
+            elif isinstance(db_config, str):
+                db_path = Path(db_config)
+            else:
+                print("Error: Invalid database configuration")
+                return 1
+        else:
+            print("Error: --database required when using --use-database")
+            return 1
+        
+        if not db_path.exists():
+            print(f"Error: Database not found: {db_path}")
+            print("Run with --build-database first to create the database")
+            return 1
+        
+        if not multipath_config:
+            print("Error: Multipath configuration required for database-based averaging")
+            print("Use --config with a TOML file containing [averaging.multipath] section")
+            return 1
+        
+        try:
+            average_chi_from_database(db_path, output_file, multipath_config, frame_range)
+            return 0
+        except Exception as e:
+            print(f"Error during database averaging: {e}")
+            return 1
+    
+    # Run file-based averaging
     try:
         average_chi_files(input_dir, frame_range, output_file, paths, multipath_config)
     except Exception as e:
