@@ -139,41 +139,74 @@ def process_atom_folder(atom_dir: Path, frame: int, atom_id: int) -> List[Dict[s
 
 def scan_feff_calculations(base_dir: Path) -> List[Tuple[Path, int, int]]:
     """
-    Scan the feff_calculations directory structure to find all atom folders.
+    Scan directory to find all folders containing FEFF calculation files.
+    
+    Looks for directories containing feff*.dat files and attempts to extract
+    frame and atom information from the directory structure.
     
     Args:
-        base_dir: Base directory containing working_X folders
+        base_dir: Base directory to search for FEFF calculations
         
     Returns:
         List of (atom_dir, frame, atom_id) tuples
     """
     atom_folders = []
     
-    # Find all working_X directories
-    working_dirs = sorted([d for d in base_dir.glob("working_*") if d.is_dir()])
+    # Find all directories containing feff*.dat files
+    logger.info(f"Scanning {base_dir} for FEFF calculations...")
     
-    for working_dir in working_dirs:
-        # Find all frame_X directories
-        frame_dirs = sorted([d for d in working_dir.glob("frame_*") if d.is_dir()])
+    # Use rglob to find all feff*.dat files recursively
+    feff_files = list(base_dir.rglob("feff*.dat"))
+    
+    if not feff_files:
+        logger.warning(f"No feff*.dat files found in {base_dir}")
+        return atom_folders
+    
+    # Group files by their parent directory
+    from collections import defaultdict
+    dirs_with_feff = defaultdict(list)
+    
+    for feff_file in feff_files:
+        dirs_with_feff[feff_file.parent].append(feff_file)
+    
+    logger.info(f"Found {len(dirs_with_feff)} directories containing FEFF files")
+    
+    # Process each directory containing FEFF files
+    for atom_dir, files in sorted(dirs_with_feff.items()):
+        # Try to extract frame and atom information from path
+        frame = 0  # Default frame
+        atom_id = 0  # Default atom ID
         
-        for frame_dir in frame_dirs:
-            # Extract frame number
+        # Try to extract atom_id from directory name (e.g., "atom_5")
+        if atom_dir.name.startswith("atom_"):
             try:
-                frame = int(frame_dir.name.split('_')[1])
+                atom_id = int(atom_dir.name.split('_')[1])
             except (IndexError, ValueError):
-                continue
-                
-            # Find all atom_X directories
-            atom_dirs = sorted([d for d in frame_dir.glob("atom_*") if d.is_dir()])
-            
-            for atom_dir in atom_dirs:
-                # Extract atom ID
+                pass
+        
+        # Try to find frame number from parent directories
+        for parent in atom_dir.parents:
+            if parent == base_dir:
+                break
+            if parent.name.startswith("frame_"):
                 try:
-                    atom_id = int(atom_dir.name.split('_')[1])
+                    frame = int(parent.name.split('_')[1])
+                    break
                 except (IndexError, ValueError):
-                    continue
-                    
-                atom_folders.append((atom_dir, frame, atom_id))
+                    pass
+        
+        # If we still don't have IDs, generate them based on directory position
+        if atom_id == 0:
+            # Use directory index as atom_id
+            atom_id = len(atom_folders)
+        
+        atom_folders.append((atom_dir, frame, atom_id))
+        
+        # Log first few directories found
+        if len(atom_folders) <= 3:
+            logger.info(f"  Found: {atom_dir.relative_to(base_dir)} (frame={frame}, atom={atom_id})")
+    
+    logger.info(f"Total atom folders found: {len(atom_folders)}")
     
     return atom_folders
 
