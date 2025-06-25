@@ -15,6 +15,7 @@ The package has been tested with CP2K trajectory files but should work with any 
 - **Parallel Processing**: Optimized for HPC environments with configurable core distribution
 - **PBC Support**: Full periodic boundary condition handling with minimum image convention
 - **Independent Averaging**: Chi averaging can be run separately with different frame ranges
+- **Multipath Analysis**: Advanced path selection by scattering type and distance
 - **CLI and API**: Both command-line tools and Python API access
 
 ## Installation
@@ -188,6 +189,23 @@ When using `--paths`:
 - Sums paths within each atom folder (saved as chi_partial_0.dat)
 - Averages the sums across all atoms (saved as output file)
 - Automatically interpolates output to standard k-grid (0 to 20 Å⁻¹ with step 0.05)
+
+#### Multipath Feature
+
+For advanced path selection based on scattering type and distance, use the multipath feature via TOML configuration:
+
+```toml
+[averaging.multipath]
+paths = ["U-O", "U-O-O"]     # Select specific scattering paths
+max_distance = 3.0            # Maximum path distance in Angstroms
+num_processes = 4             # Parallel processing
+```
+
+This feature allows filtering paths by:
+- **Path type**: Full atom notation (e.g., "U-O" for single scattering, "U-O-O" for double scattering)
+- **Distance**: Maximum effective path length (reff)
+
+See `examples/multipath_averaging.toml` and `docs/multipath_feature.md` for detailed documentation.
 
 ### md-exafs-md-input-gen
 
