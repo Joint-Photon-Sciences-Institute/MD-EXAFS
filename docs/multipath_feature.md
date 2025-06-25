@@ -76,7 +76,7 @@ md-exafs-average --config multipath_config.toml
 The multipath averaging produces:
 1. **Per-atom files**: `chi_multipath.dat` in each atom folder containing the sum of selected paths
 2. **Final averaged file**: Specified by `output_file`, containing the average across all atoms
-3. **Standard k-grid**: Output is interpolated to k = 0 to 20 Å⁻¹ with step 0.05
+3. **Standard k-grid**: Output is interpolated to k = 0 to 20 Å⁻¹ with step 0.05 using cubic spline interpolation for smooth curves
 
 ## Performance Considerations
 

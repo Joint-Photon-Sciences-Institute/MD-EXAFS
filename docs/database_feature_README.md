@@ -138,6 +138,8 @@ average_chi_from_database(
 )
 ```
 
+**Note**: The database averaging uses cubic spline interpolation to ensure smooth chi(k) curves when interpolating from FEFF's 0.1 Å⁻¹ grid to the standard 0.05 Å⁻¹ output grid.
+
 ## Database Management
 
 ### Check Database Statistics

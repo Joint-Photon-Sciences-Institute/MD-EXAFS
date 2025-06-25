@@ -281,6 +281,24 @@ Generate MD input files from CIF structures:
 md-exafs-md-input-gen --cp2k --input structure.cif --size 3,3,3 --output supercell.xyz
 ```
 
+### Plotting Chi(k) Spectra
+
+Plot chi(k) spectra directly from the database:
+
+```bash
+# Plot individual paths for a specific atom
+./plot_chi_from_database.py database.db --mode paths --frame 180000 --atom 0 --paths 1,2,3,4
+
+# Plot sum of paths for an atom
+./plot_chi_from_database.py database.db --mode atom --frame 180000 --atom 0 --path-types U-O --max-reff 3.0
+
+# Plot averaged chi(k) across multiple atoms
+./plot_chi_from_database.py database.db --mode average --start-frame 180000 --end-frame 190000 --path-types U-U
+
+# Save plot as PNG
+./plot_chi_from_database.py database.db --mode atom --frame 180000 --atom 0 --output chi_plot.png
+```
+
 ## Examples
 
 The `examples/` directory contains:
