@@ -632,7 +632,43 @@ def main():
     
     args = parser.parse_args()
     
-    # Determine configuration source
+    # Handle database building first (doesn't need averaging parameters)
+    if args.build_database:
+        if not args.database:
+            print("Error: --database required when using --build-database")
+            return 1
+        
+        # For database building, we only need input directory
+        if args.input_dir:
+            base_dir = Path(args.input_dir)
+        elif args.config:
+            # Try to get input_dir from config
+            try:
+                config = load_config(args.config)
+                if "averaging" in config and "input_directory" in config["averaging"]:
+                    base_dir = Path(config["averaging"]["input_directory"])
+                else:
+                    print("Error: Input directory not found in config file")
+                    return 1
+            except Exception as e:
+                print(f"Error loading config: {e}")
+                return 1
+        else:
+            print("Error: --input-dir required for database building")
+            return 1
+        
+        try:
+            db_path = Path(args.database)
+            build_database(base_dir, db_path, 
+                         num_workers=args.num_workers,
+                         rebuild=args.rebuild)
+            print(f"Database successfully built at {db_path}")
+            return 0
+        except Exception as e:
+            print(f"Error building database: {e}")
+            return 1
+    
+    # For non-database operations, determine configuration source
     if args.config:
         # Load from TOML
         try:
@@ -690,28 +726,6 @@ def main():
               "--input-dir, --start, --end, --output")
         parser.print_help()
         return 1
-    
-    # Handle database building
-    if args.build_database:
-        if not args.database:
-            print("Error: --database required when using --build-database")
-            return 1
-        
-        if not args.input_dir and not input_dir:
-            print("Error: Input directory required for database building")
-            return 1
-        
-        db_path = Path(args.database)
-        base_dir = Path(args.input_dir if args.input_dir else input_dir)
-        
-        try:
-            build_database(base_dir, db_path, 
-                         num_workers=args.num_workers,
-                         rebuild=args.rebuild)
-            return 0
-        except Exception as e:
-            print(f"Error building database: {e}")
-            return 1
     
     # Handle database-based averaging
     use_database = args.use_database
