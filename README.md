@@ -281,6 +281,23 @@ Generate MD input files from CIF structures:
 md-exafs-md-input-gen --cp2k --input structure.cif --size 3,3,3 --output supercell.xyz
 ```
 
+### MD Convergence Check
+
+Check MD simulation convergence by analyzing energy evolution from CP2K .ener files:
+
+```bash
+# Generate convergence plots
+md-exafs-md --check_convergence --input simulation.ener --output convergence.png
+```
+
+This creates a comprehensive convergence analysis including:
+- Temperature evolution with running average
+- Total energy conservation
+- Kinetic and potential energy trends
+- Energy drift analysis (in kcal/mol)
+
+The tool also prints convergence statistics including average temperature, energy drift, and relative drift percentage.
+
 ### Plotting Chi(k) Spectra
 
 Plot chi(k) spectra directly from the database:
