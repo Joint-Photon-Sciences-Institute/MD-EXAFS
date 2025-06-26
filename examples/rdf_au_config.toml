@@ -3,6 +3,14 @@
 [input]
 trajectory_file = "../reference_code_base/Au_bulk-pos-1.xyz"
 
+# Lattice vectors for periodic boundary conditions
+# Required for XYZ files that don't contain cell information
+[lattice]
+a = [12.5139, 0.0, 0.0]      # First lattice vector
+b = [0.0, 12.5139, 0.0]      # Second lattice vector  
+c = [0.0, 0.0, 12.5139]      # Third lattice vector
+pbc = [true, true, true]     # Periodic in x, y, z directions
+
 [output]
 directory = "rdf_results"
 report_file = "au_rdf_analysis.txt"

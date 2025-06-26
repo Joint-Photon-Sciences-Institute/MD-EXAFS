@@ -588,6 +588,32 @@ def main():
     pipeline = import_file(str(traj_file))
     num_frames = pipeline.source.num_frames
     
+    # Set up simulation cell if provided
+    if 'lattice' in config:
+        from ovito.data import SimulationCell
+        
+        # Create cell matrix from lattice vectors
+        a = config['lattice']['a']
+        b = config['lattice']['b']
+        c = config['lattice']['c']
+        pbc = config['lattice'].get('pbc', [True, True, True])
+        
+        cell_matrix = np.array([
+            [a[0], a[1], a[2], 0.0],
+            [b[0], b[1], b[2], 0.0],
+            [c[0], c[1], c[2], 0.0]
+        ])
+        
+        # Add modifier to set the cell
+        def set_cell(frame, data):
+            data.cell = SimulationCell(matrix=cell_matrix, pbc=pbc)
+        
+        pipeline.modifiers.append(set_cell)
+        print(f"Set simulation cell with PBC: {pbc}")
+        print(f"  a = {a}")
+        print(f"  b = {b}")
+        print(f"  c = {c}")
+    
     # Get frame range
     frame_start = config['analysis'].get('frame_start', 0)
     frame_end = min(config['analysis'].get('frame_end', num_frames), num_frames)

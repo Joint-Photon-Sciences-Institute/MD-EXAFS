@@ -316,6 +316,13 @@ Example TOML configuration:
 [input]
 trajectory_file = "trajectory.xyz"
 
+# Lattice vectors (required for XYZ files without cell info)
+[lattice]
+a = [21.875, 0.328, 0.0]     # First lattice vector (Angstroms)
+b = [0.328, 21.875, 0.0]     # Second lattice vector
+c = [0.0, 0.0, 21.880]       # Third lattice vector
+pbc = [true, true, true]     # Periodic boundary conditions
+
 [output]
 directory = "rdf_results"
 report_file = "rdf_analysis.txt"

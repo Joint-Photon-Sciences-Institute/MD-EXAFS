@@ -94,7 +94,7 @@ def plot_atom_sum(db: ChiDatabaseQuery,
     # Get path IDs
     path_ids = [p['id'] for p in paths]
     
-    # Sum chi data
+    # Sum chi data (paths are interpolated to uniform k-grid before summing)
     summed_data = db.sum_chi_data(path_ids)
     
     if summed_data is None:
@@ -163,7 +163,7 @@ def plot_averaged_atoms(db: ChiDatabaseQuery,
     # Get path IDs
     path_ids = [p['id'] for p in paths]
     
-    # Average using correct method (sum within atoms, then average)
+    # Average using correct method (interpolate to uniform k-grid, sum within atoms, then average)
     averaged_data, num_atoms = db.sum_chi_within_atoms_then_average(path_ids)
     
     if averaged_data is None:
