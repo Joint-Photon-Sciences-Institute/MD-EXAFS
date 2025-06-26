@@ -598,27 +598,47 @@ def main():
     if 'lattice' in config:
         from ovito.data import SimulationCell
         
-        # Create cell matrix from lattice vectors
-        a = config['lattice']['a']
-        b = config['lattice']['b']
-        c = config['lattice']['c']
-        pbc = config['lattice'].get('pbc', [True, True, True])
+        dynamic_lattice = config['lattice'].get('dynamic', False)
         
-        cell_matrix = np.array([
-            [a[0], a[1], a[2], 0.0],
-            [b[0], b[1], b[2], 0.0],
-            [c[0], c[1], c[2], 0.0]
-        ])
-        
-        # Add modifier to set the cell
-        def set_cell(frame, data):
-            data.cell = SimulationCell(matrix=cell_matrix, pbc=pbc)
-        
-        pipeline.modifiers.append(set_cell)
-        print(f"Set simulation cell with PBC: {pbc}")
-        print(f"  a = {a}")
-        print(f"  b = {b}")
-        print(f"  c = {c}")
+        if dynamic_lattice:
+            # Dynamic lattice vectors - will be read from each frame
+            print("Using dynamic lattice vectors from trajectory file")
+            
+            # Just set PBC if specified
+            pbc = config['lattice'].get('pbc', [True, True, True])
+            
+            def set_pbc(frame, data):
+                if data.cell is not None:
+                    data.cell.pbc = pbc
+                else:
+                    # Create a dummy cell with PBC if none exists
+                    # This should rarely happen with proper trajectory files
+                    print(f"Warning: No cell in frame {frame}, cannot apply PBC")
+            
+            pipeline.modifiers.append(set_pbc)
+            print(f"Set periodic boundary conditions: {pbc}")
+        else:
+            # Static lattice vectors - use provided values
+            a = config['lattice']['a']
+            b = config['lattice']['b']
+            c = config['lattice']['c']
+            pbc = config['lattice'].get('pbc', [True, True, True])
+            
+            cell_matrix = np.array([
+                [a[0], a[1], a[2], 0.0],
+                [b[0], b[1], b[2], 0.0],
+                [c[0], c[1], c[2], 0.0]
+            ])
+            
+            # Add modifier to set the cell
+            def set_cell(frame, data):
+                data.cell = SimulationCell(matrix=cell_matrix, pbc=pbc)
+            
+            pipeline.modifiers.append(set_cell)
+            print(f"Set static simulation cell with PBC: {pbc}")
+            print(f"  a = {a}")
+            print(f"  b = {b}")
+            print(f"  c = {c}")
     
     # Get frame range
     frame_start = config['analysis'].get('frame_start', 0)

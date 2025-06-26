@@ -309,19 +309,35 @@ Calculate and analyze Radial Distribution Functions (RDFs) from MD trajectories:
 ```bash
 # Run RDF analysis with configuration file
 md-exafs-md --rdf rdf_config.toml
+
+# Extract lattice vectors from a specific frame
+md-exafs-md --get_lattice_vectors --trajectory trajectory.xyz --frame 0
 ```
 
-Example TOML configuration:
+Example TOML configuration for static cell (NVT):
 ```toml
 [input]
 trajectory_file = "trajectory.xyz"
 
-# Lattice vectors (required for XYZ files without cell info)
+# Static lattice vectors (for NVT simulations)
 [lattice]
+dynamic = false              # Use fixed lattice vectors
 a = [21.875, 0.328, 0.0]     # First lattice vector (Angstroms)
 b = [0.328, 21.875, 0.0]     # Second lattice vector
 c = [0.0, 0.0, 21.880]       # Third lattice vector
 pbc = [true, true, true]     # Periodic boundary conditions
+```
+
+Example TOML configuration for dynamic cell (NPT):
+```toml
+[input]
+trajectory_file = "npt_trajectory.xyz"
+
+# Dynamic lattice vectors (for NPT simulations)
+[lattice]
+dynamic = true               # Read lattice vectors from each frame
+pbc = [true, true, true]     # Periodic boundary conditions
+# Note: a, b, c vectors not needed when dynamic = true
 
 [output]
 directory = "rdf_results"

@@ -1,0 +1,48 @@
+# RDF Analysis Configuration for NPT simulations with dynamic cell
+
+[input]
+trajectory_file = "npt_trajectory.xyz"  # Replace with your NPT trajectory
+
+# Lattice configuration for NPT simulations
+[lattice]
+# For NPT simulations where the cell changes each frame
+dynamic = true               # Read lattice vectors from each frame
+pbc = [true, true, true]    # Periodic boundary conditions
+
+# Note: When dynamic = true, you don't need to specify a, b, c vectors
+# They will be read from each frame of the trajectory
+
+# For comparison, static lattice would look like:
+# dynamic = false
+# a = [21.875, 0.328, 0.0]
+# b = [0.328, 21.875, 0.0]
+# c = [0.0, 0.0, 21.880]
+
+[output]
+directory = "rdf_npt_results"
+report_file = "npt_rdf_analysis.txt"
+plot_file = "npt_rdf_plot.png"
+
+[analysis]
+frame_start = 0
+frame_end = 1000
+frame_step = 10
+
+[rdf]
+cutoff_radius = 10.0
+num_bins = 500
+
+# Define peaks to analyze
+[[peaks]]
+center = "U"
+neighbor = "O"
+r_min = 1.8
+r_max = 3.0
+fit_type = "both"
+
+[[peaks]]
+center = "U"
+neighbor = "U"
+r_min = 3.5
+r_max = 4.5
+fit_type = "gaussian"
