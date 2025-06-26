@@ -10,6 +10,33 @@ STANDARD RDF ANALYSIS
 --------------------------------------------------------------------------------
 
 Analysis for: Au-Au
+Range: 2.500 - 3.200 Å
+----------------------------------------
+Direct calculation:
+  Coordination number: 12.0000
+  Mean distance: 2.9497 Å
+  Variance (MSRD): 0.000085 Å²
+  Third cumulant: -0.000000 Å³
+
+Gaussian fit:
+  R-squared: 1.0000
+  Mean: 2.9497 Å
+  Sigma: 0.0097 Å
+  Coordination: 11.7179
+
+Skewed Gaussian fit:
+  R-squared: 1.0000
+  Location: 2.9677 Å
+  Scale: 0.0164 Å
+  Alpha: -11.1831
+  Coordination: 17.8323
+  Mean: 2.9547 Å
+  Variance: 0.000100 Å²
+  Third cumulant: -0.000001 Å³
+
+================================================================================
+
+Analysis for: Au-Au
 Range: 3.800 - 4.600 Å
 ----------------------------------------
 Direct calculation:

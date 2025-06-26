@@ -425,10 +425,11 @@ def save_results_to_file(filename: Path, analysis_results: Dict[str, Any],
         f.write("STANDARD RDF ANALYSIS\n")
         f.write("-" * 80 + "\n\n")
         
-        for pair_name, results in analysis_results.items():
+        for peak_key, results in analysis_results.items():
             if not results:
                 continue
             
+            pair_name = results.get('shell_name', peak_key)
             f.write(f"Analysis for: {pair_name}\n")
             r_range = results.get('r_range', (None, None))
             if r_range[0] is not None:
@@ -513,8 +514,13 @@ def plot_rdfs(r: np.ndarray, rdfs: Dict[str, np.ndarray],
         ax.plot(r, g_r, label=label, lw=2, color=color)
     
     # Plot fits if available
-    for pair_name, results in analysis_results.items():
-        if not results or pair_name not in rdfs:
+    for peak_key, results in analysis_results.items():
+        if not results:
+            continue
+        
+        # Extract the actual pair name from the results
+        pair_name = results.get('shell_name', '')
+        if pair_name not in rdfs:
             continue
         
         r_min, r_max = results.get('r_range', (None, None))
@@ -753,6 +759,9 @@ def main():
         
         rho_neighbor = avg_counts[neighbor_id] / avg_volume
         
+        # Create unique key for this peak (including range)
+        peak_key = f"{pair_name}_{peak_config['r_min']:.1f}-{peak_config['r_max']:.1f}"
+        
         # Analyze
         results = {
             'shell_name': pair_name,
@@ -775,7 +784,7 @@ def main():
             )
             results.update(fit_results)
         
-        analysis_results[pair_name] = results
+        analysis_results[peak_key] = results
     
     # Analyze projected RDFs
     projected_results = {}
