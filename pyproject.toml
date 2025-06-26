@@ -40,7 +40,7 @@ md-exafs-process = "md_exafs.trajectory_processor:main"
 md-exafs-average = "md_exafs.chi_averager:main"
 md-exafs-feff-local = "md_exafs.run_feff_local:main"
 md-exafs-md-input-gen = "md_exafs.structure_input_generator:main"
-md-exafs-md = "md_exafs.convergence_check:main"
+md-exafs-md = "md_exafs.md_analysis:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

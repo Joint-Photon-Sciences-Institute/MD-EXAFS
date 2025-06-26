@@ -1,0 +1,58 @@
+RDF Analysis Report
+================================================================================
+
+Input file: ../reference_code_base/Au_bulk-pos-1.xyz
+Frames analyzed: 0 to 10 (step 1)
+RDF cutoff: 8.0 Å
+Number of bins: 400
+
+STANDARD RDF ANALYSIS
+--------------------------------------------------------------------------------
+
+Analysis for: Au-Au
+Range: 3.800 - 4.600 Å
+----------------------------------------
+Direct calculation:
+  Coordination number: 4.0000
+  Mean distance: 4.1706 Å
+  Variance (MSRD): 0.000078 Å²
+  Third cumulant: 0.000000 Å³
+
+Gaussian fit:
+  R-squared: 1.0000
+  Mean: 4.1708 Å
+  Sigma: 0.0094 Å
+  Coordination: 3.8896
+
+Skewed Gaussian fit:
+  R-squared: 1.0000
+  Location: 4.1884 Å
+  Scale: 0.0153 Å
+  Alpha: -15.0000
+  Coordination: 6.4964
+  Mean: 4.1762 Å
+  Variance: 0.000086 Å²
+  Third cumulant: -0.000001 Å³
+
+================================================================================
+
+
+PROJECTED RDF ANALYSIS
+--------------------------------------------------------------------------------
+
+Analysis for: proj_Au-Au_1.00,0.00,0.00
+Range: 2.500 - 3.200 Å
+----------------------------------------
+  Coordination number: 0.0000
+
+================================================================================
+
+Analysis for: proj_Au-Au_0.71,0.71,0.00
+Range: 2.500 - 3.200 Å
+----------------------------------------
+  Coordination number: 1.3889
+  Mean distance: 2.9499 Å
+  Variance (MSRD): 0.000060 Å²
+
+================================================================================
+

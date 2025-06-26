@@ -1,0 +1,52 @@
+# RDF Analysis Configuration for Au bulk system
+
+[input]
+trajectory_file = "../reference_code_base/Au_bulk-pos-1.xyz"
+
+[output]
+directory = "rdf_results"
+report_file = "au_rdf_analysis.txt"
+plot_file = "au_rdf_plot.png"
+
+[analysis]
+frame_start = 0
+frame_end = 10    # Process first 10 frames for testing
+frame_step = 1
+
+[rdf]
+cutoff_radius = 8.0  # Angstroms
+num_bins = 400
+
+# Define peaks to analyze
+# For Au bulk, we expect Au-Au peaks
+[[peaks]]
+center = "Au"
+neighbor = "Au"
+r_min = 2.5
+r_max = 3.2
+fit_type = "both"  # Options: "gaussian", "skewed", "both", "none"
+
+[[peaks]]
+center = "Au"
+neighbor = "Au"
+r_min = 3.8
+r_max = 4.6
+fit_type = "both"
+
+# Optional: Projected RDF analysis
+# Analyze bonds along specific crystallographic directions
+[projections]
+angle_threshold = 30.0  # degrees
+use_symmetry = false    # Generate all symmetry-equivalent directions
+
+# Example: Au-Au bonds along [100] direction
+[[projections.bonds]]
+center = "Au"
+neighbor = "Au"
+direction = [1, 0, 0]
+
+# Example: Au-Au bonds along [110] direction  
+[[projections.bonds]]
+center = "Au"
+neighbor = "Au"
+direction = [1, 1, 0]

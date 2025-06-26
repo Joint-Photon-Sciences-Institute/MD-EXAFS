@@ -281,7 +281,11 @@ Generate MD input files from CIF structures:
 md-exafs-md-input-gen --cp2k --input structure.cif --size 3,3,3 --output supercell.xyz
 ```
 
-### MD Convergence Check
+### MD Analysis Tools
+
+The `md-exafs-md` command provides tools for analyzing MD simulations:
+
+#### Convergence Check
 
 Check MD simulation convergence by analyzing energy evolution from CP2K .ener files:
 
@@ -297,6 +301,61 @@ This creates a comprehensive convergence analysis including:
 - Energy drift analysis (in kcal/mol)
 
 The tool also prints convergence statistics including average temperature, energy drift, and relative drift percentage.
+
+#### RDF Analysis
+
+Calculate and analyze Radial Distribution Functions (RDFs) from MD trajectories:
+
+```bash
+# Run RDF analysis with configuration file
+md-exafs-md --rdf rdf_config.toml
+```
+
+Example TOML configuration:
+```toml
+[input]
+trajectory_file = "trajectory.xyz"
+
+[output]
+directory = "rdf_results"
+report_file = "rdf_analysis.txt"
+plot_file = "rdf_plot.png"
+
+[analysis]
+frame_start = 0
+frame_end = 100
+frame_step = 1
+
+[rdf]
+cutoff_radius = 8.0
+num_bins = 400
+
+# Define peaks to analyze
+[[peaks]]
+center = "Au"
+neighbor = "Au"
+r_min = 2.5
+r_max = 3.2
+fit_type = "both"  # Options: "gaussian", "skewed", "both", "none"
+
+# Optional: Projected RDF for bonds along specific directions
+[projections]
+angle_threshold = 30.0
+use_symmetry = false
+
+[[projections.bonds]]
+center = "Au"
+neighbor = "Au"
+direction = [1, 0, 0]
+```
+
+Features:
+- Partial RDFs for multi-component systems
+- Peak fitting with Gaussian and skewed Gaussian functions
+- Coordination number calculation
+- Mean square relative displacement (MSRD) analysis
+- Projected RDFs along crystallographic directions
+- Support for cubic symmetry operations
 
 ### Plotting Chi(k) Spectra
 
