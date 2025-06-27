@@ -214,7 +214,7 @@ def scan_feff_calculations(base_dir: Path) -> List[Tuple[Path, int, int]]:
     for atom_dir, files in sorted(dirs_with_feff.items()):
         # Try to extract frame and atom information from path
         frame = 0  # Default frame
-        atom_id = 0  # Default atom ID
+        atom_id = None  # Default atom ID (None means not found)
         
         # Try to extract atom_id from directory name (e.g., "atom_5")
         if atom_dir.name.startswith("atom_"):
@@ -235,7 +235,7 @@ def scan_feff_calculations(base_dir: Path) -> List[Tuple[Path, int, int]]:
                     pass
         
         # If we still don't have IDs, generate them based on directory position
-        if atom_id == 0:
+        if atom_id is None:
             # Use directory index as atom_id
             atom_id = len(atom_folders)
         
