@@ -2,78 +2,91 @@ RDF Analysis Report
 ================================================================================
 
 Input file: ../reference_code_base/Au_bulk-pos-1.xyz
-Frames analyzed: 0 to 10 (step 1)
-RDF cutoff: 8.0 Å
+Frames analyzed: 180000 to 200000 (step 20)
+RDF cutoff: 6.0 Å
 Number of bins: 400
 
 STANDARD RDF ANALYSIS
 --------------------------------------------------------------------------------
 
 Analysis for: Au-Au
-Range: 2.500 - 3.200 Å
+Range: 2.500 - 3.500 Å
 ----------------------------------------
 Direct calculation:
-  Coordination number: 12.0000
-  Mean distance: 2.9497 Å
-  Variance (MSRD): 0.000085 Å²
-  Third cumulant: -0.000000 Å³
+  Coordination number: 11.9359
+  Mean distance: 2.9610 Å
+  Variance (MSRD): 0.029127 Å²
+  Third cumulant: 0.001971 Å³
 
 Gaussian fit:
-  R-squared: 1.0000
-  Mean: 2.9497 Å
-  Sigma: 0.0097 Å
-  Coordination: 11.7179
+  R-squared: 0.9805
+  Mean: 2.9192 Å
+  Sigma: 0.1661 Å
+  Coordination: 11.6894
 
 Skewed Gaussian fit:
-  R-squared: 1.0000
-  Location: 2.9677 Å
-  Scale: 0.0164 Å
-  Alpha: -11.1831
-  Coordination: 17.8323
-  Mean: 2.9547 Å
-  Variance: 0.000100 Å²
-  Third cumulant: -0.000001 Å³
+  R-squared: 0.9991
+  Location: 2.7583 Å
+  Scale: 0.2539 Å
+  Alpha: 2.2227
+  Coordination: 12.0100
+  Mean: 2.9430 Å
+  Variance: 0.030341 Å²
+  Third cumulant: 0.002707 Å³
 
 ================================================================================
 
 Analysis for: Au-Au
-Range: 3.800 - 4.600 Å
+Range: 3.500 - 4.600 Å
 ----------------------------------------
 Direct calculation:
-  Coordination number: 6.0000
-  Mean distance: 4.1709 Å
-  Variance (MSRD): 0.000082 Å²
-  Third cumulant: 0.000000 Å³
+  Coordination number: 6.0069
+  Mean distance: 4.1723 Å
+  Variance (MSRD): 0.044249 Å²
+  Third cumulant: -0.003080 Å³
+
+Gaussian fit:
+  R-squared: 0.9927
+  Mean: 4.1660 Å
+  Sigma: 0.2152 Å
+  Coordination: 5.9492
 
 Skewed Gaussian fit:
-  R-squared: 1.0000
-  Location: 4.1885 Å
-  Scale: 0.0154 Å
-  Alpha: -15.0000
-  Coordination: 9.6413
-  Mean: 4.1762 Å
-  Variance: 0.000087 Å²
-  Third cumulant: -0.000001 Å³
+  R-squared: 0.9929
+  Location: 4.0510 Å
+  Scale: 0.2470 Å
+  Alpha: 0.7611
+  Coordination: 5.9461
+  Mean: 4.1704 Å
+  Variance: 0.046775 Å²
+  Third cumulant: 0.000730 Å³
 
 ================================================================================
 
-
-PROJECTED RDF ANALYSIS
---------------------------------------------------------------------------------
-
-Analysis for: proj_Au-Au_1.00,0.00,0.00
-Range: 2.500 - 3.200 Å
+Analysis for: Au-Au
+Range: 4.600 - 5.600 Å
 ----------------------------------------
-  Coordination number: 0.0000
+Direct calculation:
+  Coordination number: 24.3467
+  Mean distance: 5.1236 Å
+  Variance (MSRD): 0.041088 Å²
+  Third cumulant: 0.000508 Å³
 
-================================================================================
+Gaussian fit:
+  R-squared: 0.9892
+  Mean: 5.1000 Å
+  Sigma: 0.2091 Å
+  Coordination: 24.1742
 
-Analysis for: proj_Au-Au_0.71,0.71,0.00
-Range: 2.500 - 3.200 Å
-----------------------------------------
-  Coordination number: 2.0000
-  Mean distance: 2.9497 Å
-  Variance (MSRD): 0.000070 Å²
+Skewed Gaussian fit:
+  R-squared: 0.9942
+  Location: 4.9357 Å
+  Scale: 0.2790 Å
+  Alpha: 1.3653
+  Coordination: 24.2820
+  Mean: 5.1153 Å
+  Variance: 0.045604 Å²
+  Third cumulant: 0.002487 Å³
 
 ================================================================================
 

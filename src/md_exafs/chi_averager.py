@@ -504,30 +504,25 @@ def average_chi_from_database(
     
     # Query and average data
     with ChiDatabaseQuery(db_path) as db:
-        all_path_ids = []
+        # Create queries for each path type with its specific max_distance
+        queries = []
         
-        # Query each path type
         for path_type, max_dist in zip(path_types, max_distances):
             query = PathQuery(
                 path_types=[path_type],
                 max_reff=max_dist,
                 frames=frames
             )
+            queries.append(query)
             
+            # Count paths for informational output
             paths = db.query_paths(query)
-            path_ids = [p['id'] for p in paths]
-            all_path_ids.extend(path_ids)
-            
-            print(f"Found {len(path_ids)} paths of type '{path_type}'" + 
+            print(f"Found {len(paths)} paths of type '{path_type}'" + 
                   (f" with reff <= {max_dist}" if max_dist else ""))
         
-        if not all_path_ids:
-            print("No paths found matching criteria")
-            return
-        
-        # Average chi data using correct method (sum within atoms, then average)
-        print(f"Processing {len(all_path_ids)} total paths...")
-        averaged_data, num_atoms = db.sum_chi_within_atoms_then_average(all_path_ids)
+        # Average chi data using the new combined query method
+        print(f"Processing paths matching criteria...")
+        averaged_data, num_atoms = db.sum_chi_within_atoms_then_average_queries(queries)
         
         if averaged_data is None:
             print("No chi data found for selected paths")

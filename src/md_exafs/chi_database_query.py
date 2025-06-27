@@ -415,6 +415,215 @@ class ChiDatabaseQuery:
         logger.info(f"Averaged {len(atom_sums)} atom sums")
         
         return np.column_stack((standard_k, chi_average)), num_atoms
+    
+    def sum_chi_within_atoms_then_average_query(self, query: PathQuery,
+                                                k_min: float = 0.0, k_max: float = 20.0,
+                                                k_step: float = 0.05) -> Tuple[Optional[np.ndarray], int]:
+        """
+        Sum chi(k) data within each atom, then average across atoms, using a query.
+        
+        This method avoids the "too many SQL variables" error by using a single query
+        with proper WHERE conditions instead of collecting all path IDs first.
+        
+        Args:
+            query: PathQuery object with selection criteria
+            k_min: Minimum k value for output grid
+            k_max: Maximum k value for output grid
+            k_step: Step size for output grid
+            
+        Returns:
+            Tuple of (numpy array with columns [k, chi_average], number of atoms) or (None, 0) if no data
+        """
+        # Build SQL query to get atom groups directly
+        sql = """
+            SELECT p.frame, p.atom_id, GROUP_CONCAT(p.id) as path_ids
+            FROM paths p
+            WHERE 1=1
+        """
+        params = []
+        
+        # Add filters from query
+        if query.path_types:
+            placeholders = ','.join('?' * len(query.path_types))
+            sql += f" AND p.path_type IN ({placeholders})"
+            params.extend(query.path_types)
+        
+        if query.min_reff is not None:
+            sql += " AND p.reff >= ?"
+            params.append(query.min_reff)
+        
+        if query.max_reff is not None:
+            sql += " AND p.reff <= ?"
+            params.append(query.max_reff)
+        
+        if query.frames:
+            placeholders = ','.join('?' * len(query.frames))
+            sql += f" AND p.frame IN ({placeholders})"
+            params.extend(query.frames)
+        
+        if query.atom_ids:
+            placeholders = ','.join('?' * len(query.atom_ids))
+            sql += f" AND p.atom_id IN ({placeholders})"
+            params.extend(query.atom_ids)
+        
+        if query.nleg is not None:
+            sql += " AND p.nleg = ?"
+            params.append(query.nleg)
+        
+        sql += " GROUP BY p.frame, p.atom_id"
+        
+        # Execute query
+        cursor = self._conn.execute(sql, params)
+        
+        # Create standard k-grid
+        standard_k = np.arange(k_min, k_max + k_step, k_step)
+        
+        # Process each atom
+        atom_sums = []
+        num_atoms = 0
+        
+        for row in cursor:
+            num_atoms += 1
+            # Parse path IDs from comma-separated string
+            atom_path_ids = [int(pid) for pid in row['path_ids'].split(',')]
+            
+            # Get chi data for this atom's paths
+            chi_data = self.get_chi_data(atom_path_ids)
+            
+            if chi_data:
+                # Sum all paths for this atom
+                chi_sum = np.zeros_like(standard_k)
+                
+                for path_id, (k_grid, chi_values) in chi_data.items():
+                    # Interpolate each path to standard grid BEFORE summing using cubic splines
+                    f_interp = interp1d(k_grid, chi_values, kind='cubic',
+                                       bounds_error=False, fill_value=0.0)
+                    chi_interp = f_interp(standard_k)
+                    chi_sum += chi_interp
+                
+                atom_sums.append(chi_sum)
+        
+        if not atom_sums:
+            return None, 0
+        
+        # Average across atoms
+        chi_average = np.mean(atom_sums, axis=0)
+        
+        logger.info(f"Averaged {len(atom_sums)} atom sums")
+        
+        return np.column_stack((standard_k, chi_average)), num_atoms
+    
+    def sum_chi_within_atoms_then_average_queries(self, queries: List[PathQuery],
+                                                  k_min: float = 0.0, k_max: float = 20.0,
+                                                  k_step: float = 0.05) -> Tuple[Optional[np.ndarray], int]:
+        """
+        Sum chi(k) data within each atom, then average across atoms, using multiple queries.
+        
+        This method handles multiple path types with different distance criteria efficiently.
+        It combines all queries with UNION to avoid the "too many SQL variables" error.
+        
+        Args:
+            queries: List of PathQuery objects with selection criteria
+            k_min: Minimum k value for output grid
+            k_max: Maximum k value for output grid
+            k_step: Step size for output grid
+            
+        Returns:
+            Tuple of (numpy array with columns [k, chi_average], number of atoms) or (None, 0) if no data
+        """
+        if not queries:
+            return None, 0
+        
+        # Build UNION query to get all matching paths grouped by atom
+        union_parts = []
+        all_params = []
+        
+        for query in queries:
+            sql_part = """
+                SELECT p.frame, p.atom_id, p.id
+                FROM paths p
+                WHERE 1=1
+            """
+            params = []
+            
+            # Add filters from query
+            if query.path_types:
+                placeholders = ','.join('?' * len(query.path_types))
+                sql_part += f" AND p.path_type IN ({placeholders})"
+                params.extend(query.path_types)
+            
+            if query.min_reff is not None:
+                sql_part += " AND p.reff >= ?"
+                params.append(query.min_reff)
+            
+            if query.max_reff is not None:
+                sql_part += " AND p.reff <= ?"
+                params.append(query.max_reff)
+            
+            if query.frames:
+                placeholders = ','.join('?' * len(query.frames))
+                sql_part += f" AND p.frame IN ({placeholders})"
+                params.extend(query.frames)
+            
+            if query.atom_ids:
+                placeholders = ','.join('?' * len(query.atom_ids))
+                sql_part += f" AND p.atom_id IN ({placeholders})"
+                params.extend(query.atom_ids)
+            
+            if query.nleg is not None:
+                sql_part += " AND p.nleg = ?"
+                params.append(query.nleg)
+            
+            union_parts.append(f"({sql_part})")
+            all_params.extend(params)
+        
+        # Combine with UNION and group by atom
+        full_sql = f"""
+            SELECT frame, atom_id, GROUP_CONCAT(id) as path_ids
+            FROM ({' UNION '.join(union_parts)})
+            GROUP BY frame, atom_id
+        """
+        
+        # Execute query
+        cursor = self._conn.execute(full_sql, all_params)
+        
+        # Create standard k-grid
+        standard_k = np.arange(k_min, k_max + k_step, k_step)
+        
+        # Process each atom
+        atom_sums = []
+        num_atoms = 0
+        
+        for row in cursor:
+            num_atoms += 1
+            # Parse path IDs from comma-separated string
+            atom_path_ids = [int(pid) for pid in row['path_ids'].split(',')]
+            
+            # Get chi data for this atom's paths
+            chi_data = self.get_chi_data(atom_path_ids)
+            
+            if chi_data:
+                # Sum all paths for this atom
+                chi_sum = np.zeros_like(standard_k)
+                
+                for path_id, (k_grid, chi_values) in chi_data.items():
+                    # Interpolate each path to standard grid BEFORE summing using cubic splines
+                    f_interp = interp1d(k_grid, chi_values, kind='cubic',
+                                       bounds_error=False, fill_value=0.0)
+                    chi_interp = f_interp(standard_k)
+                    chi_sum += chi_interp
+                
+                atom_sums.append(chi_sum)
+        
+        if not atom_sums:
+            return None, 0
+        
+        # Average across atoms
+        chi_average = np.mean(atom_sums, axis=0)
+        
+        logger.info(f"Averaged {len(atom_sums)} atom sums")
+        
+        return np.column_stack((standard_k, chi_average)), num_atoms
 
 
 def query_and_average_multipath(db_path: Path, 

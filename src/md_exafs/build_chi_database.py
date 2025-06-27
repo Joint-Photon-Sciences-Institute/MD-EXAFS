@@ -111,6 +111,48 @@ def _convert_feffdat_to_chi(feff_file: Path) -> Tuple[Optional[np.ndarray], Opti
         return None, None
 
 
+def _get_central_atom_element(atom_dir: Path) -> str:
+    """
+    Extract the central atom element from the feff.inp file.
+    
+    Args:
+        atom_dir: Path to the atom directory containing feff.inp
+        
+    Returns:
+        Element symbol of the central atom (e.g., 'Au', 'U', 'Pt')
+    """
+    feff_inp = atom_dir / "feff.inp"
+    if not feff_inp.exists():
+        logger.warning(f"No feff.inp found in {atom_dir}")
+        return 'X'  # Unknown element
+    
+    try:
+        with open(feff_inp, 'r') as f:
+            lines = f.readlines()
+        
+        # Look for the ATOMS section and find the first atom (central atom)
+        in_atoms_section = False
+        for line in lines:
+            if line.strip().startswith('ATOMS'):
+                in_atoms_section = True
+                continue
+            
+            if in_atoms_section and line.strip() and not line.strip().startswith('END'):
+                # Parse the first atom line: x y z pot element
+                parts = line.strip().split()
+                if len(parts) >= 5:
+                    # The last element should be the atom symbol
+                    element = parts[4]
+                    return element
+        
+        logger.warning(f"Could not find central atom in {feff_inp}")
+        return 'X'
+        
+    except Exception as e:
+        logger.error(f"Error reading {feff_inp}: {e}")
+        return 'X'
+
+
 def process_atom_folder(atom_dir: Path, frame: int, atom_id: int) -> List[Dict[str, Any]]:
     """
     Process all FEFF paths in a single atom folder.
@@ -124,6 +166,9 @@ def process_atom_folder(atom_dir: Path, frame: int, atom_id: int) -> List[Dict[s
         List of dictionaries containing path data and chi(k) results
     """
     results = []
+    
+    # Get the central atom element
+    central_element = _get_central_atom_element(atom_dir)
     
     # Find all feff####.dat files
     feff_files = sorted(atom_dir.glob("feff*.dat"))
@@ -153,7 +198,8 @@ def process_atom_folder(atom_dir: Path, frame: int, atom_id: int) -> List[Dict[s
                 'path_num': path_num,
                 'path_info': path_info,
                 'k_grid': k_grid,
-                'chi_values': chi_values
+                'chi_values': chi_values,
+                'central_element': central_element
             })
     
     return results
@@ -403,8 +449,9 @@ def build_database(base_dir: Path, db_path: Path, num_workers: int = 4,
                             # Insert results into database
                             for result in results:
                                 # Insert atom info (if not already present)
+                                central_element = result.get('central_element', 'X')
                                 insert_atom_info(conn, result['frame'], result['atom_id'], 
-                                               'U')  # Assuming uranium for now
+                                               central_element)
                                 
                                 # Insert path metadata
                                 path_id = insert_path_metadata(

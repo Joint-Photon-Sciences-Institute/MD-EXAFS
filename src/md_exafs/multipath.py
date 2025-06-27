@@ -59,7 +59,7 @@ def parse_feff_header(feff_file: Path) -> Dict[str, Any]:
                     int(parts[3])
                     int(parts[4])
                     # The 6th element is the atom label
-                    atom_label = parts[5].upper()
+                    atom_label = parts[5]
                     atom_types.append(atom_label)
                 except (ValueError, IndexError):
                     continue
