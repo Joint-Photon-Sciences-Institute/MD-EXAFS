@@ -397,7 +397,7 @@ class ChiDatabaseQuery:
                 # Sum all paths for this atom
                 chi_sum = np.zeros_like(standard_k)
                 
-                for path_id, (k_grid, chi_values) in chi_data.items():
+                for _, (k_grid, chi_values) in chi_data.items():
                     # Interpolate each path to standard grid BEFORE summing using cubic splines
                     f_interp = interp1d(k_grid, chi_values, kind='cubic',
                                        bounds_error=False, fill_value=0.0)
@@ -494,7 +494,7 @@ class ChiDatabaseQuery:
                 # Sum all paths for this atom
                 chi_sum = np.zeros_like(standard_k)
                 
-                for path_id, (k_grid, chi_values) in chi_data.items():
+                for _, (k_grid, chi_values) in chi_data.items():
                     # Interpolate each path to standard grid BEFORE summing using cubic splines
                     f_interp = interp1d(k_grid, chi_values, kind='cubic',
                                        bounds_error=False, fill_value=0.0)
@@ -577,10 +577,15 @@ class ChiDatabaseQuery:
             union_parts.append(f"({sql_part})")
             all_params.extend(params)
         
+        # If no queries produced any SQL parts, return empty result
+        if not union_parts:
+            return None, 0
+        
         # Combine with UNION and group by atom
+        # Note: SQLite requires an alias for the subquery
         full_sql = f"""
             SELECT frame, atom_id, GROUP_CONCAT(id) as path_ids
-            FROM ({' UNION '.join(union_parts)})
+            FROM ({' UNION '.join(union_parts)}) AS combined_paths
             GROUP BY frame, atom_id
         """
         
@@ -606,7 +611,7 @@ class ChiDatabaseQuery:
                 # Sum all paths for this atom
                 chi_sum = np.zeros_like(standard_k)
                 
-                for path_id, (k_grid, chi_values) in chi_data.items():
+                for _, (k_grid, chi_values) in chi_data.items():
                     # Interpolate each path to standard grid BEFORE summing using cubic splines
                     f_interp = interp1d(k_grid, chi_values, kind='cubic',
                                        bounds_error=False, fill_value=0.0)
