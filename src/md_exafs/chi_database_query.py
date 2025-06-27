@@ -574,12 +574,17 @@ class ChiDatabaseQuery:
                 sql_part += " AND p.nleg = ?"
                 params.append(query.nleg)
             
-            union_parts.append(f"({sql_part})")
+            union_parts.append(sql_part)
             all_params.extend(params)
         
         # If no queries produced any SQL parts, return empty result
         if not union_parts:
             return None, 0
+        
+        # Debug: Print the union parts to see what's being generated
+        logger.debug(f"Number of union parts: {len(union_parts)}")
+        for i, part in enumerate(union_parts):
+            logger.debug(f"Union part {i}: {part}")
         
         # Combine with UNION and group by atom
         # Note: SQLite requires an alias for the subquery
@@ -588,6 +593,10 @@ class ChiDatabaseQuery:
             FROM ({' UNION '.join(union_parts)}) AS combined_paths
             GROUP BY frame, atom_id
         """
+        
+        # Debug: Print the full SQL query
+        logger.debug(f"Full SQL query: {full_sql}")
+        logger.debug(f"Parameters: {all_params}")
         
         # Execute query
         cursor = self._conn.execute(full_sql, all_params)
