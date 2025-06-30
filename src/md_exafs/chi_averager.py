@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 try:
     from larch import Interpreter
-    from larch.xafs import feffpath
+    from larch.xafs import feffpath, path2chi
     LARCH_AVAILABLE = True
 except ImportError:
     LARCH_AVAILABLE = False
@@ -179,43 +179,36 @@ def _sum_chi_data(data_list: List[np.ndarray]) -> np.ndarray:
     return np.column_stack((k_grid, chi_sum))
 
 
-def _convert_feffdat_to_chi(feff_file: Path, larch_interp: Any) -> Optional[np.ndarray]:
-    """Convert a single feff####.dat file to chi(k) using xraylarch."""
+def _convert_feffdat_to_chi(feff_file: Path, larch_interp: Any, k_grid: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+    """Convert a single feff####.dat file to chi(k) using xraylarch.
+    
+    Args:
+        feff_file: Path to the feff####.dat file
+        larch_interp: Larch interpreter instance
+        k_grid: Optional k-grid to use. If None, uses standard grid (0-20, step 0.05)
+        
+    Returns:
+        Numpy array with columns [k, chi] or None if conversion fails
+    """
     try:
         # Create a FeffPath object
         path = feffpath(str(feff_file), _larch=larch_interp)
         
-        # The path needs to be properly initialized first
-        path.create_path_params()
+        # Use standard k-grid if not provided
+        if k_grid is None:
+            k_grid = np.arange(0, 20.05, 0.05)
         
-        # Get k grid from the path data itself
-        if hasattr(path, 'k') and path.k is not None:
-            k = np.array(path.k)
-        else:
-            # If k is not available, use the _feffdat data
-            if hasattr(path, '_feffdat') and hasattr(path._feffdat, 'k'):
-                k = np.array(path._feffdat.k)
-            else:
-                print(f"Warning: No k grid found in path data for {feff_file}")
-                return None
+        # Calculate chi using path2chi - this properly applies degeneracy
+        path2chi(path, k=k_grid, _larch=larch_interp)
         
-        # Calculate chi for this k grid
-        path._calc_chi(k)
-        
-        # Get the chi array
+        # Get the chi array (now includes degeneracy)
         if hasattr(path, 'chi') and path.chi is not None:
             chi = np.array(path.chi)
+            return np.column_stack((k_grid, chi))
         else:
             print(f"Warning: Could not calculate chi for {feff_file}")
             return None
-        
-        # Ensure k and chi have the same length
-        if len(k) != len(chi):
-            min_len = min(len(k), len(chi))
-            k = k[:min_len]
-            chi = chi[:min_len]
-        
-        return np.column_stack((k, chi))
+            
     except Exception as e:
         print(f"Error converting {feff_file}: {e}")
         return None
@@ -315,32 +308,12 @@ def _average_feff_paths(
         # Average all partial chi files (average of sums across atoms)
         final_averaged = _average_chi_data(all_partial_chi)
         
-        # Interpolate to standard k-grid (0 to 20 with step 0.05)
-        from scipy.interpolate import interp1d
-        
-        # Create standard k-grid
-        k_standard = np.arange(0, 20.05, 0.05)
-        
-        # Extract k and chi from averaged data
-        k_orig = final_averaged[:, 0]
-        chi_orig = final_averaged[:, 1]
-        
-        # Create interpolation function
-        f_interp = interp1d(k_orig, chi_orig, kind='cubic', 
-                           bounds_error=False, fill_value='extrapolate')
-        
-        # Interpolate to standard grid
-        chi_interp = f_interp(k_standard)
-        
-        # Create final data array
-        final_data = np.column_stack((k_standard, chi_interp))
-        
-        # Save the final averaged and interpolated data
-        np.savetxt(output_file, final_data, fmt='%.6f',
-                  header="k(A^-1)  chi(k) - Average of path sums across all atoms (interpolated to k=0:20:0.05)")
+        # Save the final averaged data (already on standard k-grid)
+        np.savetxt(output_file, final_averaged, fmt='%.6f',
+                  header="k(A^-1)  chi(k) - Average of path sums across all atoms (k=0:20:0.05)")
         print(f"Final averaged data saved to {output_file}")
         print(f"Averaged over {len(all_partial_chi)} atom folders")
-        print(f"Interpolated to standard k-grid: 0 to 20 Å⁻¹ with step 0.05")
+        print(f"Standard k-grid: 0 to 20 Å⁻¹ with step 0.05")
         print(f"Note: Each atom's chi_partial_0.dat contains the SUM of paths {paths}")
         print(f"      The final output is the AVERAGE of these sums across atoms")
     else:

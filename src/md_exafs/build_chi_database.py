@@ -28,7 +28,7 @@ from .multipath import parse_feff_header
 
 try:
     from larch import Interpreter
-    from larch.xafs import feffpath
+    from larch.xafs import feffpath, path2chi
     LARCH_AVAILABLE = True
 except ImportError:
     LARCH_AVAILABLE = False
@@ -76,35 +76,19 @@ def _convert_feffdat_to_chi(feff_file: Path) -> Tuple[Optional[np.ndarray], Opti
         # Create a FeffPath object
         path = feffpath(str(feff_file), _larch=larch_interp)
         
-        # Initialize path parameters
-        path.create_path_params()
+        # Use standard k-grid (0-20, step 0.05)
+        k_grid = np.arange(0, 20.05, 0.05)
         
-        # Get k grid from the path data
-        if hasattr(path, 'k') and path.k is not None:
-            k = np.array(path.k)
-        elif hasattr(path, '_feffdat') and hasattr(path._feffdat, 'k'):
-            k = np.array(path._feffdat.k)
-        else:
-            logger.warning(f"No k grid found in path data for {feff_file}")
-            return None, None
+        # Calculate chi using path2chi - this properly applies degeneracy
+        path2chi(path, k=k_grid, _larch=larch_interp)
         
-        # Calculate chi for this k grid
-        path._calc_chi(k)
-        
-        # Get the chi array
+        # Get the chi array (now includes degeneracy)
         if hasattr(path, 'chi') and path.chi is not None:
             chi = np.array(path.chi)
+            return k_grid, chi
         else:
             logger.warning(f"Could not calculate chi for {feff_file}")
             return None, None
-        
-        # Ensure k and chi have the same length
-        if len(k) != len(chi):
-            min_len = min(len(k), len(chi))
-            k = k[:min_len]
-            chi = chi[:min_len]
-        
-        return k, chi
         
     except Exception as e:
         logger.error(f"Error converting {feff_file}: {e}")
