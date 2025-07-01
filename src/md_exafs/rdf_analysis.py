@@ -456,6 +456,7 @@ def save_results_to_file(filename: Path, analysis_results: Dict[str, Any],
                 params = gaussian_fit.get('parameters', {})
                 f.write(f"  Mean: {params.get('mean', 0):.4f} Å\n")
                 f.write(f"  Sigma: {params.get('sigma', 0):.4f} Å\n")
+                f.write(f"  Variance: {params.get('sigma', 0)**2:.6f} Å²\n")
                 derived = gaussian_fit.get('derived', {})
                 f.write(f"  Coordination: {derived.get('coordination', 0):.4f}\n")
             
