@@ -436,6 +436,7 @@ def average_chi_from_database(
         multipath_config: Multipath configuration dictionary with keys:
                          - paths: List of path types (e.g., ["U-O", "U-O-O"])
                          - max_distance: List of maximum distances for each path type
+                         - min_distance: List of minimum distances for each path type (default: 1)
         frame_range: Optional tuple of (start_frame, end_frame) to include
     """
     print(f"Using database: {db_path}")
@@ -464,6 +465,24 @@ def average_chi_from_database(
         last_val = max_distances[-1] if max_distances else None
         max_distances.extend([last_val] * (len(path_types) - len(max_distances)))
     
+    # Handle min_distance configuration
+    if "min_distance" in multipath_config:
+        min_distances = multipath_config["min_distance"]
+        if isinstance(min_distances, (int, float)):
+            # Single value applies to all path types
+            min_distances = [min_distances] * len(path_types)
+        elif not isinstance(min_distances, list):
+            min_distances = [min_distances]
+    else:
+        # Default minimum distance is 1
+        min_distances = [1] * len(path_types)
+    
+    # Ensure we have a min_distance for each path type
+    if len(min_distances) < len(path_types):
+        # Pad with the last value or 1
+        last_val = min_distances[-1] if min_distances else 1
+        min_distances.extend([last_val] * (len(path_types) - len(min_distances)))
+    
     # Prepare frames list if frame_range is specified
     frames = None
     if frame_range:
@@ -477,21 +496,28 @@ def average_chi_from_database(
     
     # Query and average data
     with ChiDatabaseQuery(db_path) as db:
-        # Create queries for each path type with its specific max_distance
+        # Create queries for each path type with its specific max_distance and min_distance
         queries = []
         
-        for path_type, max_dist in zip(path_types, max_distances):
+        for path_type, max_dist, min_dist in zip(path_types, max_distances, min_distances):
             query = PathQuery(
                 path_types=[path_type],
                 max_reff=max_dist,
+                min_reff=min_dist,
                 frames=frames
             )
             queries.append(query)
             
             # Count paths for informational output
             paths = db.query_paths(query)
-            print(f"Found {len(paths)} paths of type '{path_type}'" + 
-                  (f" with reff <= {max_dist}" if max_dist else ""))
+            distance_str = ""
+            if min_dist is not None and max_dist is not None:
+                distance_str = f" with {min_dist} <= reff <= {max_dist}"
+            elif min_dist is not None:
+                distance_str = f" with reff >= {min_dist}"
+            elif max_dist is not None:
+                distance_str = f" with reff <= {max_dist}"
+            print(f"Found {len(paths)} paths of type '{path_type}'{distance_str}")
         
         # Average chi data using the new combined query method
         print(f"Processing paths matching criteria...")
