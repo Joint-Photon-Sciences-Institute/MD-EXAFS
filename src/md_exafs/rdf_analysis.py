@@ -286,6 +286,12 @@ def gaussian(x: np.ndarray, amp: float, mu: float, sigma: float) -> np.ndarray:
     return amp * np.exp(-(x - mu)**2 / (2 * sigma**2))
 
 
+def gaussian_constrained_mean(x: np.ndarray, amp: float, sigma: float, mu_fixed: float) -> np.ndarray:
+    """Gaussian function with fixed mean for fitting."""
+    sigma = max(abs(sigma), 1e-6)
+    return amp * np.exp(-(x - mu_fixed)**2 / (2 * sigma**2))
+
+
 def skewed_gaussian(x: np.ndarray, amp: float, mu: float, sigma: float, alpha: float) -> np.ndarray:
     """Skewed Gaussian function for fitting."""
     sigma = max(abs(sigma), 1e-6)
@@ -296,7 +302,7 @@ def skewed_gaussian(x: np.ndarray, amp: float, mu: float, sigma: float, alpha: f
 
 def fit_peak(r: np.ndarray, g_r: np.ndarray, rho_neighbor: float, 
              r_min: float, r_max: float, shell_name: str, 
-             fit_type: str = "both") -> Dict[str, Any]:
+             fit_type: str = "both", constrain_gaussian_mean: Optional[float] = None) -> Dict[str, Any]:
     """Fit RDF peak with Gaussian and/or skewed Gaussian."""
     mask = (r >= r_min) & (r <= r_max)
     r_shell = r[mask]
@@ -316,20 +322,37 @@ def fit_peak(r: np.ndarray, g_r: np.ndarray, rho_neighbor: float,
     # Gaussian fit
     if fit_type in ["gaussian", "both"]:
         try:
-            p0_gauss = [max_g, max_r, sigma_guess]
-            bounds_gauss = ([0, r_min, 1e-4], [max_g * 5, r_max, (r_max - r_min) * 2])
-            popt_gauss, pcov_gauss = curve_fit(gaussian, r_shell, g_r_shell, 
-                                              p0=p0_gauss, bounds=bounds_gauss)
+            if constrain_gaussian_mean is not None:
+                # Constrained fit: only fit amplitude and sigma
+                gaussian_fixed = lambda x, amp, sigma: gaussian_constrained_mean(x, amp, sigma, constrain_gaussian_mean)
+                p0_constrained = [max_g, sigma_guess]
+                bounds_constrained = ([0, 1e-4], [max_g * 5, (r_max - r_min) * 2])
+                popt_constrained, pcov_constrained = curve_fit(gaussian_fixed, r_shell, g_r_shell,
+                                                               p0=p0_constrained, bounds=bounds_constrained)
+                
+                # Unpack parameters and reconstruct full parameter set
+                fit_amp, fit_sigma = popt_constrained
+                fit_mean = constrain_gaussian_mean
+                fit_sigma = abs(fit_sigma)
+                popt_gauss = [fit_amp, fit_mean, fit_sigma]
+                pcov_gauss = pcov_constrained
+                
+                g_r_fit = gaussian(r_shell, *popt_gauss)
+            else:
+                # Standard fit: fit all three parameters
+                p0_gauss = [max_g, max_r, sigma_guess]
+                bounds_gauss = ([0, r_min, 1e-4], [max_g * 5, r_max, (r_max - r_min) * 2])
+                popt_gauss, pcov_gauss = curve_fit(gaussian, r_shell, g_r_shell, 
+                                                  p0=p0_gauss, bounds=bounds_gauss)
+                
+                g_r_fit = gaussian(r_shell, *popt_gauss)
+                fit_amp, fit_mean, fit_sigma = popt_gauss
+                fit_sigma = abs(fit_sigma)
             
-            g_r_fit = gaussian(r_shell, *popt_gauss)
             residuals = g_r_shell - g_r_fit
             ss_res = np.sum(residuals**2)
             ss_tot = np.sum((g_r_shell - np.mean(g_r_shell))**2)
             r_squared = 1 - (ss_res / ss_tot) if ss_tot > 1e-9 else 1.0
-
-            # Calculate derived properties
-            fit_amp, fit_mean, fit_sigma = popt_gauss
-            fit_sigma = abs(fit_sigma)
             
             # Coordination number
             integrand_cn = lambda r_val: 4.0 * np.pi * r_val**2 * rho_neighbor * gaussian(r_val, *popt_gauss)
@@ -348,7 +371,8 @@ def fit_peak(r: np.ndarray, g_r: np.ndarray, rho_neighbor: float,
                     'mean': fit_mean,
                     'variance': fit_sigma**2,
                     'third_cumulant': 0.0
-                }
+                },
+                'constrained_mean': constrain_gaussian_mean is not None
             }
         except Exception:
             results['gaussian'] = None
@@ -451,10 +475,17 @@ def save_results_to_file(filename: Path, analysis_results: Dict[str, Any],
             # Gaussian fit results
             gaussian_fit = results.get('gaussian')
             if gaussian_fit and gaussian_fit != 'None':
-                f.write("\nGaussian fit:\n")
+                f.write("\nGaussian fit")
+                if gaussian_fit.get('constrained_mean', False):
+                    f.write(" (mean constrained):\n")
+                else:
+                    f.write(":\n")
                 f.write(f"  R-squared: {gaussian_fit.get('r_squared', 0):.4f}\n")
                 params = gaussian_fit.get('parameters', {})
-                f.write(f"  Mean: {params.get('mean', 0):.4f} Å\n")
+                f.write(f"  Mean: {params.get('mean', 0):.4f} Å")
+                if gaussian_fit.get('constrained_mean', False):
+                    f.write(" (fixed)")
+                f.write("\n")
                 f.write(f"  Sigma: {params.get('sigma', 0):.4f} Å\n")
                 f.write(f"  Variance: {params.get('sigma', 0)**2:.6f} Å²\n")
                 derived = gaussian_fit.get('derived', {})
@@ -798,10 +829,11 @@ def main():
         # Fitting
         fit_type = peak_config.get('fit_type', 'both')
         if fit_type != 'none':
+            constrain_gaussian_mean = peak_config.get('constrain_gaussian_mean', None)
             fit_results = fit_peak(
                 r_distances, g_r, rho_neighbor,
                 peak_config['r_min'], peak_config['r_max'],
-                pair_name, fit_type
+                pair_name, fit_type, constrain_gaussian_mean
             )
             results.update(fit_results)
         
