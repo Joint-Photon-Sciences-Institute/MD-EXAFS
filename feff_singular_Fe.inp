@@ -1,0 +1,26 @@
+TITLE Fe impurity in Al matrix test
+EDGE L3
+S02 1.0
+CONTROL 1 1 1 1 1 1
+PRINT 0 0 0 0 0 0
+RPATH 6.5
+NLEG 8
+FMS 10.0 0
+EXCHANGE 0 0.0 0.0 2
+SCF 7.0 0 100 0.20 3
+XANES 4.0 0.07 0.0
+
+POTENTIALS
+*   ipot   z [ label   l_scmt  l_fms  stoichiometry ]
+    0   26    Fe     -1      -1       1
+    1   13    Al     -1      -1       6
+
+ATOMS
+0.000000	0.000000	0.000000	0	Fe
+2.000000	0.000000	0.000000	1	Al
+-2.000000	0.000000	0.000000	1	Al
+0.000000	2.000000	0.000000	1	Al
+0.000000	-2.000000	0.000000	1	Al
+0.000000	0.000000	2.000000	1	Al
+0.000000	0.000000	-2.000000	1	Al
+END

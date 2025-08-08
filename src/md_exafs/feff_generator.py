@@ -84,10 +84,10 @@ def assign_potential_indices(
     
     FEFF Convention:
     - Potential 0: Always the central (absorbing) atom
-    - Potentials 1, 2, 3, ...: Different atomic species
+    - Potentials 1, 2, 3, ...: Different atomic species in neighbors
     
-    The absorbing element always gets potential 1 when it appears as a neighbor.
-    Other elements are assigned sequential potentials starting from 2.
+    Elements are assigned sequential potentials based on their occurrence as neighbors.
+    If the absorbing element appears as a neighbor, it gets the next available index.
     
     Args:
         element_symbols: List of element symbols for all atoms
@@ -99,20 +99,18 @@ def assign_potential_indices(
     """
     absorbing_element = config["feff"]["absorbing_element"]
     
-    # Build the species mapping
-    # First, get all unique elements except the absorbing element
-    unique_elements = sorted(set(element_symbols) - {absorbing_element})
+    # Get unique elements from neighbors only (exclude index 0 which is central atom)
+    neighbor_elements = element_symbols[1:] if len(element_symbols) > 1 else []
+    unique_neighbor_elements = sorted(set(neighbor_elements))
     
-    # Create potential mapping
-    # Absorbing element always gets index 1 when it's a neighbor
-    species_to_potential = {absorbing_element: 1}
+    # Create potential mapping for neighbor atoms
+    species_to_potential = {}
+    next_potential = 1
     
-    # Assign sequential indices to other elements
-    next_potential = 2
-    for element in unique_elements:
-        if element not in species_to_potential:
-            species_to_potential[element] = next_potential
-            next_potential += 1
+    # Assign sequential indices to all unique neighbor elements
+    for element in unique_neighbor_elements:
+        species_to_potential[element] = next_potential
+        next_potential += 1
     
     # Now assign potential indices
     potential_indices = []
