@@ -86,8 +86,8 @@ def assign_potential_indices(
     - Potential 0: Always the central (absorbing) atom
     - Potentials 1, 2, 3, ...: Different atomic species in neighbors
     
-    Elements are assigned sequential potentials based on their occurrence as neighbors.
-    If the absorbing element appears as a neighbor, it gets the next available index.
+    If POTENTIALS is defined in the header, parse it to get the mapping.
+    Otherwise, auto-generate based on unique neighbor elements.
     
     Args:
         element_symbols: List of element symbols for all atoms
@@ -98,19 +98,25 @@ def assign_potential_indices(
         List of potential indices corresponding to each atom
     """
     absorbing_element = config["feff"]["absorbing_element"]
+    header = config["feff"]["header"]
     
-    # Get unique elements from neighbors only (exclude index 0 which is central atom)
-    neighbor_elements = element_symbols[1:] if len(element_symbols) > 1 else []
-    unique_neighbor_elements = sorted(set(neighbor_elements))
-    
-    # Create potential mapping for neighbor atoms
-    species_to_potential = {}
-    next_potential = 1
-    
-    # Assign sequential indices to all unique neighbor elements
-    for element in unique_neighbor_elements:
-        species_to_potential[element] = next_potential
-        next_potential += 1
+    # Check if POTENTIALS section is user-defined
+    if "POTENTIALS" in header:
+        # Parse the user-defined POTENTIALS section
+        species_to_potential = _parse_potentials_from_header(header)
+    else:
+        # Auto-generate mapping based on unique neighbor elements
+        neighbor_elements = element_symbols[1:] if len(element_symbols) > 1 else []
+        unique_neighbor_elements = sorted(set(neighbor_elements))
+        
+        # Create potential mapping for neighbor atoms
+        species_to_potential = {}
+        next_potential = 1
+        
+        # Assign sequential indices to all unique neighbor elements
+        for element in unique_neighbor_elements:
+            species_to_potential[element] = next_potential
+            next_potential += 1
     
     # Now assign potential indices
     potential_indices = []
@@ -118,6 +124,61 @@ def assign_potential_indices(
         if i == 0:  # Central atom
             potential_indices.append(0)
         else:  # Neighbor atom
+            if element not in species_to_potential:
+                raise ValueError(
+                    f"Element '{element}' found in neighbors but not defined in POTENTIALS. "
+                    f"Available potentials: {species_to_potential}"
+                )
             potential_indices.append(species_to_potential[element])
     
     return potential_indices
+
+
+def _parse_potentials_from_header(header: str) -> Dict[str, int]:
+    """
+    Parse the POTENTIALS section from a FEFF header to extract element-to-potential mapping.
+    
+    Args:
+        header: FEFF header containing POTENTIALS section
+        
+    Returns:
+        Dictionary mapping element symbols to potential indices (excluding potential 0)
+    """
+    import re
+    
+    lines = header.split('\n')
+    in_potentials = False
+    species_to_potential = {}
+    
+    for line in lines:
+        # Check if we're entering POTENTIALS section
+        if 'POTENTIALS' in line.upper() and not line.strip().startswith('*'):
+            in_potentials = True
+            continue
+        
+        # Process POTENTIALS section if we're in it but haven't entered yet
+        if not in_potentials:
+            continue
+            
+        # Skip comment lines and empty lines
+        if line.strip().startswith('*') or not line.strip():
+            continue
+            
+        # Stop at other FEFF keywords that come AFTER potentials
+        # (ATOMS is the most common one)
+        if any(keyword == line.strip().upper() for keyword in 
+               ['ATOMS', 'END']):
+            break
+        
+        # Parse potential line: "    0   26    Fe     -1      -1       1"
+        # Match pattern: potential_index atomic_number element_symbol ...
+        match = re.match(r'\s*(\d+)\s+(\d+)\s+(\w+)', line)
+        if match:
+            pot_idx = int(match.group(1))
+            element = match.group(3)
+            
+            # Skip potential 0 (central atom)
+            if pot_idx > 0:
+                species_to_potential[element] = pot_idx
+    
+    return species_to_potential
