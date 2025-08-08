@@ -102,6 +102,12 @@ CLAUDE.md
 # Test outputs
 test_bad_config.toml
 
+# Verification example outputs
+examples/verify_database/*.db
+examples/verify_database/verification_plots/
+examples/verify_database/**/*.png
+examples/verify_database/**/*.dat
+
 # Claude files
 CLAUDE.md
 .claude/
