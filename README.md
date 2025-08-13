@@ -45,7 +45,7 @@ conda install --strict-channel-priority -c https://conda.ovito.org -c conda-forg
 conda install -c conda-forge xraylarch
 
 # Clone and install
-git clone https://github.com/yourusername/md-exafs.git
+git clone https://github.com/Joint-Photon-Sciences-Institute/MD-EXAFS.git
 cd md-exafs
 pip install -e .
 ```
