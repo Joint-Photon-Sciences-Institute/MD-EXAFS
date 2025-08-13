@@ -14,8 +14,8 @@ MD-EXAFS processes MD simulation trajectories to generate FEFF input files and c
 - **Database Caching**: Pre-compute chi(k) data for 10-100x faster multipath averaging
 - **Multipath Analysis**: Advanced path selection by scattering type and distance
 - **PBC Support**: Full periodic boundary condition handling
-- **Multiple Formats**: Compatible with OVITO-supported trajectories (XYZ, LAMMPS, VASP, etc.)
-- **LAMMPS Support**: Native support for LAMMPS dump files with automatic type mapping
+- **Multiple Trajectory Formats**: Native support for CP2K XYZ, LAMMPS dump files, and ASE trajectory formats
+- **Type Mapping**: Flexible atom type mapping for numeric types in trajectories
 
 ## Installation
 
@@ -66,14 +66,19 @@ trajectory_file = "path/to/trajectory.xyz"
 output_directory = "feff_calculations"
 
 [lattice]
+# CRITICAL: Use exact lattice vectors from your simulation
+# Small differences (even 0.0001 Å) can cause PBC issues
 a = [21.875, 0.328, 0.0]
 b = [0.328, 21.875, 0.0]
 c = [0.0, 0.0, 21.880]
 pbc = [true, true, true]
 
 [atoms]
-U = 1  # Atom type mapping from trajectory
-O = 2
+# Map trajectory atom types to element symbols
+# For numeric types (CP2K, LAMMPS): type_id = element
+# For ASE trajectories: element = type_id
+U = 1  # Type 1 in trajectory = Uranium
+O = 2  # Type 2 in trajectory = Oxygen
 
 [processing]
 start_frame = 90000
@@ -105,19 +110,50 @@ md-exafs-average --config averaging_config.toml
 
 ### 3. Database-Optimized Workflow (Recommended for Multipath)
 
-For faster multipath averaging, use the database feature:
+For multipath analysis, you need to preserve individual path files:
 
 ```bash
-# Build database once (processes ALL frames/atoms found)
+# Step 1: Process trajectory with proper FEFF settings for multipath
+# Your config.toml must include CONTROL and PRINT lines (see Multipath section)
+md-exafs-process config.toml
+
+# Step 2: Run FEFF with --keep-paths flag to preserve individual path files
+md-exafs-feff-local --base-dir feff_calculations --workers 10 --keep-paths
+
+# Step 3: Build database from path files
 md-exafs-average --build-database --input-dir feff_calculations --database chi_database.db
 
-# Then use database for fast averaging with different configurations
+# Step 4: Use database for fast multipath averaging
 md-exafs-average --config multipath_config.toml --use-database --database chi_database.db
 ```
 
 The database provides 10-100x speedup for multipath averaging by eliminating redundant calculations.
 
 ## Detailed Usage
+
+### Supported Trajectory Formats
+
+MD-EXAFS supports multiple trajectory formats through OVITO:
+
+1. **CP2K XYZ Format** (`.xyz`)
+   - Standard XYZ format with element symbols
+   - OVITO converts elements to numeric types automatically
+   - Type mapping based on element order
+
+2. **LAMMPS Dump Format** (`.lammpstrj`, `.dump`)
+   - Native support for LAMMPS trajectories
+   - Atoms identified by numeric type IDs
+   - Direct type-to-element mapping in config
+
+3. **ASE Trajectory Format** (`.traj`)
+   - Binary format from Atomic Simulation Environment
+   - Converted to numeric types by OVITO
+   - Type assignment based on atom counts
+
+**Important Configuration Notes:**
+- **Lattice Vectors**: Must be specified with high precision (all decimal places)
+- **PBC Settings**: Critical for proper neighbor finding
+- **Type Mapping**: Match numeric types to element symbols in `[atoms]` section
 
 ### Processing MD Trajectories
 
@@ -145,7 +181,11 @@ feff_calculations/
 For testing or small datasets:
 
 ```bash
+# Standard execution (chi.dat only)
 md-exafs-feff-local --base-dir feff_calculations --workers 10
+
+# For multipath analysis (preserves individual path files)
+md-exafs-feff-local --base-dir feff_calculations --workers 10 --keep-paths
 ```
 
 #### HPC Execution
@@ -182,6 +222,15 @@ md-exafs-average --input-dir feff_calculations --start 90000 --end 100000 --path
 #### Multipath Analysis
 For advanced path selection by type and distance:
 
+**Important**: For multipath to work, your FEFF input must include these headers:
+```
+CONTROL   1      1     1     1     1      1
+PRINT     1      0     0     0     0      3
+```
+
+These settings tell FEFF to generate individual path files (feff0001.dat, feff0002.dat, etc.).
+
+Configuration example:
 ```toml
 [averaging]
 input_directory = "feff_calculations"
@@ -310,9 +359,6 @@ Calculate and analyze Radial Distribution Functions (RDFs) from MD trajectories:
 ```bash
 # Run RDF analysis with configuration file
 md-exafs-md --rdf rdf_config.toml
-
-# Extract lattice vectors from a specific frame
-md-exafs-md --get_lattice_vectors --trajectory trajectory.xyz --frame 0
 ```
 
 Example TOML configuration for static cell (NVT):
@@ -423,6 +469,30 @@ The `examples/` directory contains:
 2. **Independent Calculations**: Each FEFF run is independent, enabling perfect parallel scaling
 3. **Memory Management**: Database building processes atoms in batches to manage memory
 4. **Load Balancing**: Workers dynamically pull from calculation queue
+
+## Troubleshooting
+
+### FEFF Warnings About Atoms Too Close
+
+If you see warnings like "TWO ATOMS VERY CLOSE TOGETHER" in FEFF output:
+
+1. **Check Lattice Vector Precision**: Use the exact lattice vectors from your simulation
+   - Even small differences (0.0001 Å) can cause PBC wrapping issues
+   - Example: Use `16.3620301200` not `16.362`
+
+2. **Verify Atom Type Mapping**: Ensure the `[atoms]` section correctly maps trajectory types to elements
+   - Check atom counts to identify type assignments
+   - OVITO converts element symbols to numeric types
+
+3. **Confirm PBC Settings**: Set `pbc = [true, true, true]` for periodic systems
+
+### Type Mapping Issues
+
+If processing fails with "No atoms of absorbing element found":
+
+1. Check how your trajectory assigns atom types
+2. For numeric types, verify the mapping in `[atoms]` section
+3. Use atom counts to determine correct type assignments
 
 ## License
 

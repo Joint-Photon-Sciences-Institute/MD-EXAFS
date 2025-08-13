@@ -111,3 +111,6 @@ examples/verify_database/**/*.dat
 # Claude files
 CLAUDE.md
 .claude/
+
+# Test trajectory data
+test_trajectory/
