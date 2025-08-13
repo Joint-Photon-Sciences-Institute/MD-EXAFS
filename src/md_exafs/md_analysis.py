@@ -116,6 +116,8 @@ def main():
     # RDF analysis arguments
     parser.add_argument('--rdf', type=str,
                        help='Path to RDF configuration TOML file')
+    parser.add_argument('--rdf-save', type=str,
+                       help='Save RDF data to file (only with --rdf)')
     
     # Lattice vector extraction arguments
     parser.add_argument('--get_lattice_vectors', action='store_true',
@@ -144,8 +146,10 @@ def main():
     
     # Handle RDF analysis
     elif args.rdf:
-        # Pass the argument to the RDF analysis module
+        # Pass the arguments to the RDF analysis module
         sys.argv = ['md-exafs-md', '--rdf', args.rdf]
+        if args.rdf_save:
+            sys.argv.extend(['--rdf-save', args.rdf_save])
         rdf_main()
     
     # Handle lattice vector extraction

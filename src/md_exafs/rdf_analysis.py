@@ -30,6 +30,7 @@ class PartialRDFModifier(ModifierInterface):
     r_max = Float(6.0, label="Cutoff radius")
     projection_requests = TraitsList(TraitsDict)
     cos_angle_threshold = Float(0.866)  # Default cos(30 deg)
+    lammps_type_map = TraitsDict()  # Mapping from type ID to element name for LAMMPS
 
     def modify(self, data: DataCollection, *, frame: int, **kwargs):
         """Calculate RDFs for the current frame."""
@@ -65,10 +66,18 @@ class PartialRDFModifier(ModifierInterface):
         for central_type_id in sorted(unique_type_ids):
             if central_counts[central_type_id] == 0:
                 continue
-            central_type_name = type_table.type_by_id(central_type_id).name or f"Type_{central_type_id}"
+            # Use LAMMPS mapping if available, otherwise use type names from data
+            if self.lammps_type_map and central_type_id in self.lammps_type_map:
+                central_type_name = self.lammps_type_map[central_type_id]
+            else:
+                central_type_name = type_table.type_by_id(central_type_id).name or f"Type_{central_type_id}"
 
             for neighbor_type_id in sorted(unique_type_ids):
-                neighbor_type_name = type_table.type_by_id(neighbor_type_id).name or f"Type_{neighbor_type_id}"
+                # Use LAMMPS mapping if available, otherwise use type names from data
+                if self.lammps_type_map and neighbor_type_id in self.lammps_type_map:
+                    neighbor_type_name = self.lammps_type_map[neighbor_type_id]
+                else:
+                    neighbor_type_name = type_table.type_by_id(neighbor_type_id).name or f"Type_{neighbor_type_id}"
                 label = f"{central_type_name}-{neighbor_type_name}"
                 labels.append(label)
 
@@ -182,7 +191,11 @@ class PartialRDFModifier(ModifierInterface):
         # Store metadata
         data.attributes['rdf_particle_counts'] = central_counts
         data.attributes['rdf_volume'] = volume
-        data.attributes['rdf_type_map'] = {t.id: t.name for t in type_table.types}
+        # Use LAMMPS mapping if available, otherwise use type names from data
+        if self.lammps_type_map:
+            data.attributes['rdf_type_map'] = self.lammps_type_map
+        else:
+            data.attributes['rdf_type_map'] = {t.id: t.name for t in type_table.types}
 
 
 def load_config(config_path: Path) -> Dict[str, Any]:
@@ -534,6 +547,104 @@ def save_results_to_file(filename: Path, analysis_results: Dict[str, Any],
                 f.write("\n" + "=" * 80 + "\n\n")
 
 
+def get_xray_form_factor(element: str) -> float:
+    """Get approximate X-ray atomic form factor at Q=0 (equals atomic number).
+    
+    For more accurate calculations, Q-dependent form factors should be used.
+    """
+    # Simplified: use atomic number as form factor at Q=0
+    form_factors = {
+        'H': 1, 'He': 2, 'Li': 3, 'Be': 4, 'B': 5, 'C': 6, 'N': 7, 'O': 8,
+        'F': 9, 'Ne': 10, 'Na': 11, 'Mg': 12, 'Al': 13, 'Si': 14, 'P': 15,
+        'S': 16, 'Cl': 17, 'Ar': 18, 'K': 19, 'Ca': 20, 'Sc': 21, 'Ti': 22,
+        'V': 23, 'Cr': 24, 'Mn': 25, 'Fe': 26, 'Co': 27, 'Ni': 28, 'Cu': 29,
+        'Zn': 30, 'Ga': 31, 'Ge': 32, 'As': 33, 'Se': 34, 'Br': 35, 'Kr': 36,
+        'Rb': 37, 'Sr': 38, 'Y': 39, 'Zr': 40, 'Nb': 41, 'Mo': 42, 'Tc': 43,
+        'Ru': 44, 'Rh': 45, 'Pd': 46, 'Ag': 47, 'Cd': 48, 'In': 49, 'Sn': 50,
+        'Sb': 51, 'Te': 52, 'I': 53, 'Xe': 54, 'Cs': 55, 'Ba': 56, 'La': 57,
+        'Ce': 58, 'Pr': 59, 'Nd': 60, 'Pm': 61, 'Sm': 62, 'Eu': 63, 'Gd': 64,
+        'Tb': 65, 'Dy': 66, 'Ho': 67, 'Er': 68, 'Tm': 69, 'Yb': 70, 'Lu': 71,
+        'Hf': 72, 'Ta': 73, 'W': 74, 'Re': 75, 'Os': 76, 'Ir': 77, 'Pt': 78,
+        'Au': 79, 'Hg': 80, 'Tl': 81, 'Pb': 82, 'Bi': 83, 'Po': 84, 'At': 85,
+        'Rn': 86, 'Fr': 87, 'Ra': 88, 'Ac': 89, 'Th': 90, 'Pa': 91, 'U': 92
+    }
+    return form_factors.get(element, 1)
+
+
+def save_rdf_data(r: np.ndarray, rdfs: Dict[str, np.ndarray], output_file: Path,
+                  atom_counts: Dict[str, float] = None) -> None:
+    """Save all RDF data to a columnar text file.
+    
+    Args:
+        r: Distance array
+        rdfs: Dictionary of RDF data with labels as keys
+        output_file: Path to save the data
+        atom_counts: Dictionary of atom counts by element for weighted RDF
+    """
+    # Prepare header and data
+    header_parts = ["# r(Angstrom)"]
+    data_arrays = [r]
+    
+    # Add individual RDFs
+    for label in sorted(rdfs.keys()):
+        header_parts.append(label)
+        data_arrays.append(rdfs[label])
+    
+    # Calculate and add average RDF
+    if rdfs:
+        avg_rdf = np.zeros_like(r)
+        for g_r in rdfs.values():
+            avg_rdf += g_r
+        avg_rdf /= len(rdfs)  # Simple average
+        header_parts.append("Average_RDF")
+        data_arrays.append(avg_rdf)
+    
+    # Calculate weighted RDF for X-ray scattering if atom counts provided
+    if atom_counts and rdfs:
+        # Extract element counts and calculate concentrations
+        total_atoms = sum(atom_counts.values())
+        concentrations = {elem: count/total_atoms for elem, count in atom_counts.items()}
+        
+        # Calculate weighted RDF
+        weighted_rdf = np.zeros_like(r)
+        total_weight = 0.0
+        
+        for label, g_r in rdfs.items():
+            # Parse pair label (e.g., "Fe-O" -> ["Fe", "O"])
+            if '-' in label:
+                elem1, elem2 = label.split('-')
+                
+                # Get concentrations and form factors
+                c1 = concentrations.get(elem1, 0)
+                c2 = concentrations.get(elem2, 0)
+                f1 = get_xray_form_factor(elem1)
+                f2 = get_xray_form_factor(elem2)
+                
+                # Weight for this pair
+                # For partial RDF, weight = c_i * c_j * f_i * f_j
+                # (multiply by 2 if i != j for both i-j and j-i contributions)
+                if elem1 == elem2:
+                    weight = c1 * c2 * f1 * f2
+                else:
+                    weight = 2 * c1 * c2 * f1 * f2
+                
+                weighted_rdf += weight * g_r
+                total_weight += weight
+        
+        # Normalize
+        if total_weight > 0:
+            weighted_rdf /= total_weight
+            header_parts.append("Weighted_RDF_Xray")
+            data_arrays.append(weighted_rdf)
+    
+    # Stack arrays and save
+    header = "\t".join(header_parts)
+    data = np.column_stack(data_arrays)
+    
+    np.savetxt(output_file, data, header=header, delimiter='\t', fmt='%.6f')
+    print(f"Saved RDF data to: {output_file}")
+
+
 def plot_rdfs(r: np.ndarray, rdfs: Dict[str, np.ndarray], 
              analysis_results: Dict[str, Any], output_file: Path,
              config: Dict[str, Any]) -> None:
@@ -603,6 +714,8 @@ def main():
     )
     parser.add_argument('--rdf', type=str, required=True,
                        help='Path to RDF configuration TOML file')
+    parser.add_argument('--rdf-save', type=str, 
+                       help='Save all RDF data to a columnar text file')
     
     args = parser.parse_args()
     
@@ -625,6 +738,27 @@ def main():
     print(f"Loading trajectory: {traj_file}")
     pipeline = import_file(str(traj_file))
     num_frames = pipeline.source.num_frames
+    
+    # Check for LAMMPS format and store mapping if needed
+    lammps_type_map = None
+    if 'atoms' in config:
+        # Get first frame to check particle types
+        data = pipeline.compute(0)
+        first_type = data.particles.particle_types.types[0]
+        
+        # Check if type names are empty or numeric (indicates LAMMPS format)
+        if first_type.name == '' or first_type.name.isdigit():
+            print("Detected LAMMPS trajectory format")
+            
+            # Check if config uses numeric keys (LAMMPS style)
+            atoms_config = config['atoms']
+            if all(k.isdigit() for k in atoms_config.keys()):
+                # Create mapping from type ID to element name
+                lammps_type_map = {}
+                for type_id_str, element_name in atoms_config.items():
+                    type_id = int(type_id_str)
+                    lammps_type_map[type_id] = element_name
+                    print(f"  Type {type_id} -> {element_name}")
     
     # Set up simulation cell if provided
     if 'lattice' in config:
@@ -685,9 +819,14 @@ def main():
     cos_angle_threshold = np.cos(np.radians(projections_config.get('angle_threshold', 30.0)))
     
     if projections_config.get('bonds'):
-        # Get type mapping from first frame
-        data = pipeline.compute(0)
-        type_map = {pt.name: pt.id for pt in data.particles.particle_types.types}
+        # Get type mapping - use LAMMPS mapping if available
+        if lammps_type_map:
+            # Reverse the mapping: element_name -> type_id
+            type_map = {v: k for k, v in lammps_type_map.items()}
+        else:
+            # Get type mapping from first frame
+            data = pipeline.compute(0)
+            type_map = {pt.name: pt.id for pt in data.particles.particle_types.types}
         
         for bond in projections_config['bonds']:
             center_name = bond['center']
@@ -732,7 +871,8 @@ def main():
         r_max=config['rdf']['cutoff_radius'],
         num_bins=config['rdf']['num_bins'],
         projection_requests=projection_requests,
-        cos_angle_threshold=cos_angle_threshold
+        cos_angle_threshold=cos_angle_threshold,
+        lammps_type_map=lammps_type_map if lammps_type_map else {}
     )
     pipeline.modifiers.append(rdf_modifier)
     
@@ -876,6 +1016,17 @@ def main():
         plot_file = output_dir / config['output']['plot_file']
         print(f"Creating RDF plot: {plot_file}")
         plot_rdfs(r_distances, rdfs, analysis_results, plot_file, config)
+    
+    # Save RDF data if requested
+    if args.rdf_save:
+        save_file = Path(args.rdf_save)
+        # Create element counts dictionary from type counts and mapping
+        element_counts = {}
+        for tid, count in avg_counts.items():
+            element_name = type_map.get(tid, f'Type_{tid}')
+            if element_name and not element_name.startswith('Type_'):
+                element_counts[element_name] = count
+        save_rdf_data(r_distances, rdfs, save_file, element_counts)
     
     print("\nRDF analysis complete!")
 

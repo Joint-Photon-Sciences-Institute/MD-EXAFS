@@ -15,6 +15,7 @@ MD-EXAFS processes MD simulation trajectories to generate FEFF input files and c
 - **Multipath Analysis**: Advanced path selection by scattering type and distance
 - **PBC Support**: Full periodic boundary condition handling
 - **Multiple Formats**: Compatible with OVITO-supported trajectories (XYZ, LAMMPS, VASP, etc.)
+- **LAMMPS Support**: Native support for LAMMPS dump files with automatic type mapping
 
 ## Installation
 
@@ -23,7 +24,7 @@ MD-EXAFS processes MD simulation trajectories to generate FEFF input files and c
 ```bash
 # Clone the repository
 git clone https://github.com/Joint-Photon-Sciences-Institute/MD-EXAFS.git
-cd md-exafs
+cd MD-EXAFS
 
 # Create conda environment
 conda env create -f environment.yml
@@ -46,7 +47,7 @@ conda install -c conda-forge xraylarch
 
 # Clone and install
 git clone https://github.com/Joint-Photon-Sciences-Institute/MD-EXAFS.git
-cd md-exafs
+cd MD-EXAFS
 pip install -e .
 ```
 
