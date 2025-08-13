@@ -22,7 +22,7 @@ MD-EXAFS processes MD simulation trajectories to generate FEFF input files and c
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/md-exafs.git
+git clone https://github.com/Joint-Photon-Sciences-Institute/MD-EXAFS.git
 cd md-exafs
 
 # Create conda environment
