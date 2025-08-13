@@ -47,7 +47,7 @@ def find_feff_executable():
 
 def run_single_feff(args):
     """Run FEFF calculation in a single directory."""
-    directory, feff_exe = args
+    directory, feff_exe, keep_paths = args
     
     # Change to the directory
     original_dir = os.getcwd()
@@ -66,8 +66,22 @@ def run_single_feff(args):
         # Check if chi.dat was created
         if Path("chi.dat").exists():
             # Clean up intermediate files (keep only essential ones)
-            for file in Path(".").glob("*"):
-                if file.name not in ["feff.inp", "feff.out", "chi.dat"]:
+            if not keep_paths:
+                # Standard cleanup - keep only essential files
+                for file in Path(".").glob("*"):
+                    if file.name not in ["feff.inp", "feff.out", "chi.dat"]:
+                        try:
+                            file.unlink()
+                        except:
+                            pass
+            else:
+                # Keep path files for multipath analysis
+                import re
+                keep_patterns = ["feff.inp", "feff.out", "chi.dat", "paths.dat", "files.dat"]
+                for file in Path(".").glob("*"):
+                    # Keep feffNNNN.dat files and other essential files
+                    if re.match(r"feff\d{4}\.dat", file.name) or file.name in keep_patterns:
+                        continue
                     try:
                         file.unlink()
                     except:
@@ -105,6 +119,11 @@ def main():
         type=str,
         default=None,
         help="Path to FEFF executable (default: auto-detect)"
+    )
+    parser.add_argument(
+        "--keep-paths",
+        action="store_true",
+        help="Keep individual path files (feffNNNN.dat) for multipath analysis"
     )
     
     args = parser.parse_args()
@@ -162,7 +181,7 @@ def main():
     failed = []
     
     # Prepare arguments for parallel execution
-    work_items = [(dir_path, feff_exe) for dir_path in feff_dirs]
+    work_items = [(dir_path, feff_exe, args.keep_paths) for dir_path in feff_dirs]
     
     with ProcessPoolExecutor(max_workers=workers) as executor:
         # Submit all tasks
